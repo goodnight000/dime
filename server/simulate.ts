@@ -265,7 +265,7 @@ export function billHike(b: { merchant?: string; amount?: number } = {}) {
   const sub = state.subscriptions.find((s) => s.merchant === merchant);
   if (sub) sub.price = amount;
   const p = findFor(`bill:${merchant}`);
-  if (!p) return speak("dime", `${merchant} posted ${usd(amount)}, in line with its history. Nothing to flag; one short line at most.`, [`${merchant} ${usd(amount)} posted. normal 👍`]);
+  if (!p) return; // in line with its history: nothing worth a text
   const app = open("proposal", p);
   const months = state.txns.filter((t) => t.kind === "bill" && t.merchant === merchant).length - 1;
   return speak("dime",
@@ -280,7 +280,7 @@ export function lowBalance(b: { amount?: number } = {}) {
   const amount = Number(b.amount) || Math.max(1000, Math.round(balance("checking") - 1480));
   ingest({ merchant: "Chase Sapphire autopay", amount, category: "transfer", kind: "transfer" });
   const r = runway();
-  if (r.left >= CUSHION) return speak("dime", `The Chase Sapphire autopay (${usd(amount)}) cleared; checking is ${usd(balance("checking"))}, plenty until payday. One short line at most.`, [`Sapphire autopay cleared. you're fine till payday 👍`]);
+  if (r.left >= CUSHION) return; // plenty until payday: nothing worth a text
   const move = Math.ceil((CUSHION - r.left) / 500) * 500;
   const app = card({
     find: "topup", key: `topup:${now().toISOString()}`, amount: move,
@@ -290,7 +290,7 @@ export function lowBalance(b: { amount?: number } = {}) {
     verb: `Move ${usd(move)}`, working: `Approved · moving ${usd(move)}`, declined: "Not now. I'll watch it.",
   });
   return speak("dime",
-    `Heads-up: the Chase Sapphire autopay just took ${usd(amount)}, leaving ${usd(balance("checking"))} in checking. Before payday (${day(r.pay)}, ${r.days} days) he has ${usd(r.billsTotal)} of bills due (${r.bills.map((x) => x.merchant).join(", ")}) and usually spends about ${usd(r.perDay)} a day, which would leave about ${usd(r.left)}: too close. Savings has ${usd(balance("savings"))}. A card follows your words offering to move ${usd(move)} from savings; don't ask it yourself. Calm, not alarming.`,
+    `Heads-up: the Chase Sapphire autopay just took ${usd(amount)}, leaving ${usd(balance("checking"))} in checking. Before payday (${day(r.pay)}, ${r.days} days) he has ${usd(r.billsTotal)} of bills due (${r.bills.map((x) => x.merchant).join(", ")}) and usually spends about ${usd(r.perDay)} a day, which would leave him ${r.left < 0 ? `about ${usd(-r.left)} short` : `only about ${usd(r.left)}`}: too close. Savings has ${usd(balance("savings"))}. A card follows your words offering to move ${usd(move)} from savings; don't ask it yourself. Calm, not alarming.`,
     [`heads up: Sapphire autopay took ${usd(amount)}. checking's at ${usd(balance("checking"))} 🫣`, `that's tight till payday ${day(r.pay)}`, app]);
 }
 
@@ -328,7 +328,7 @@ export function milestone() {
 /** End-of-day check: a run of days under the number gets a short hype line. */
 export function underStreak() {
   const n = streak();
-  if (n < 3) return speak("dime", `He's ${n} day${n === 1 ? "" : "s"} under his number. Nothing to hype; skip it or one short line.`, [`${n} day${n === 1 ? "" : "s"} under. let's stack them`]);
+  if (n < 3) return; // not a streak yet: nothing worth a text
   return speak("dime", `He has come in under his daily number ${n} days in a row. One short hype line, no lecture.`, [`${n} days under in a row 🔥 who even are you`]);
 }
 

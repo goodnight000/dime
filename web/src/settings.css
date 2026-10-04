@@ -1,0 +1,277 @@
+/* Settings: a short lead in the left column, the groups to its right: one bordered container per
+   group, dividered rows. Each row: label over its hint (a swap slot: hint / Saved / refusal), the
+   control on the right at a fixed size, so no state ever moves the row. A phone stacks them. */
+main.settings {
+  --thumb: var(--pane);
+}
+:root[data-theme="dark"] main.settings {
+  --thumb: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) main.settings {
+    --thumb: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+  }
+}
+
+main.settings .set-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 46rem);
+  gap: var(--s6);
+  align-items: start;
+}
+main.settings .lead {
+  position: sticky;
+  top: 0;
+  margin: 0;
+  font-size: var(--step-0);
+  line-height: 1.45;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+main.settings .groups {
+  display: grid;
+  gap: var(--s5);
+}
+main.settings .groups h2 {
+  margin: 0 0 var(--s2);
+  font-size: var(--step-0);
+  font-weight: 600;
+  line-height: 1.35;
+}
+main.settings .rows {
+  margin: 0;
+}
+/* The Goals group (goals feature) renders into this section; until it does, nothing below the h2. */
+main.settings .goals-mount:not(:has(> :not(h2))) {
+  display: none;
+}
+
+main.settings .set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 4.25rem;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  box-sizing: border-box;
+}
+main.settings .sl {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+main.settings .sl b {
+  font-size: var(--step-0);
+  font-weight: 500;
+  line-height: 1.35;
+}
+main.settings .hint small {
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+main.settings .hint .ok {
+  color: var(--money);
+}
+main.settings .hint .ok::before {
+  content: "✓ ";
+}
+main.settings .hint .err {
+  color: var(--danger);
+}
+main.settings .sc {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---- Inline fields: the value at rest, an input over it while focused. ---- */
+main.settings .field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  min-width: 7.5rem;
+  height: 2.25rem;
+  padding: 0 0.6rem;
+  box-sizing: border-box;
+  border-radius: 8px;
+  font-size: var(--step-0);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+  transition: background-color var(--quick);
+}
+main.settings .field .num {
+  line-height: 1.1;
+}
+main.settings .field .suffix {
+  font-size: var(--step--1);
+  font-weight: 400;
+  color: var(--muted);
+}
+main.settings .field input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--fg);
+  opacity: 0;
+}
+main.settings .field.has-suffix input {
+  padding-right: calc(0.6rem + 1.9em);
+}
+main.settings .field input:focus {
+  opacity: 1;
+  outline: none;
+}
+main.settings .field:focus-within .num {
+  visibility: hidden;
+}
+main.settings .field:focus-within {
+  background: var(--bg-2);
+}
+main.settings .field:has(input:focus-visible) {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.settings .field:not(.ro):hover {
+    background: var(--bg-2);
+  }
+}
+main.settings .field.ro {
+  cursor: default;
+  color: var(--muted);
+}
+/* Text and time fields show the input itself: there is no rolled value to swap with. */
+main.settings .field.text,
+main.settings .field.time {
+  padding: 0;
+}
+main.settings .field.text input,
+main.settings .field.time input {
+  position: static;
+  opacity: 1;
+  padding: 0 0.6rem;
+}
+main.settings .field.text input {
+  width: 12rem;
+  text-overflow: ellipsis;
+}
+main.settings .field.time input {
+  width: 8.5rem;
+}
+main.settings .field.time input::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+/* ---- Segmented control: a thumb slides under the chosen segment. Equal segments, so the thumb
+   only translates (no width change). Inner radius 8 = 10 − 2 inset. ---- */
+main.settings .seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  min-width: calc(var(--n) * 4.25rem);
+  padding: 2px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+main.settings .seg button {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 2rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--quick),
+    scale var(--t-quick) ease-out;
+}
+main.settings .seg button[aria-checked="true"] {
+  color: var(--fg);
+  cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.settings .seg button:hover {
+    color: var(--fg);
+  }
+}
+main.settings .seg button:active {
+  scale: 0.97;
+  transition: scale var(--t-press) ease-out;
+}
+main.settings .seg button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0;
+}
+main.settings .seg .thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 8px;
+  background: var(--thumb);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 10%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  translate: calc(var(--i, 0) * 100%) 0;
+  transition:
+    translate var(--t-move) var(--ease-in-out),
+    opacity var(--quick);
+}
+main.settings .seg.none .thumb {
+  opacity: 0;
+}
+main.settings .still .seg .thumb,
+main.settings .still .seg button {
+  transition: none;
+}
+
+@media (max-width: 759px) {
+  main.settings .set-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+  main.settings .lead {
+    position: static;
+  }
+  /* Wide controls go under their label, full width. */
+  main.settings .set[data-row="fund"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s2);
+    padding-block: 0.75rem;
+  }
+  main.settings .set[data-row="fund"] .sc {
+    justify-content: stretch;
+  }
+  main.settings .set[data-row="fund"] .seg {
+    width: 100%;
+    min-width: 0;
+  }
+  main.settings .hint small {
+    white-space: normal;
+  }
+}

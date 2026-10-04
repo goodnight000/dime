@@ -6,8 +6,8 @@ import type { Screen } from "./main.ts";
 
 // Settings: the variables Dime runs on, one dividered row each: label, a one-line "or text Dime"
 // hint, and a minimal control. Saves on change (no Save button); the hint line swaps to "Saved" or
-// the server's refusal in place. Texting Dime writes the same fields (set_tone, set_goal,
-// update_settings), so the page polls every 2s and rolls whatever changed elsewhere.
+// the server's refusal in place. Texting Dime writes the same fields (set_tone, update_settings),
+// so the page polls every 2s and rolls whatever changed elsewhere.
 
 type Fund = "VOO" | "QQQ" | "SOXX" | "DRAM" | "CASH";
 type Settings = {
@@ -15,7 +15,6 @@ type Settings = {
   income: number;
   bills: number;
   invest: number;
-  goal: { name: string; price: number; saved: number };
   fund: Fund | null;
   morning: string;
   hourly: number;
@@ -46,6 +45,12 @@ const row = (k: string, label: string, hint: string, control: string) => `
   </li>`;
 const say = (t: string) => `or text Dime: “${t}”`;
 
+/** The Goals group belongs to the goals feature: it registers a renderer, called with the group's
+ *  <section> (its h2 already in place) each time Settings mounts, and `alive()` for its own polling. */
+type GoalsRenderer = (section: HTMLElement, alive: () => boolean) => void;
+let goalsRenderer: GoalsRenderer | null = null;
+export const mountGoals = (fn: GoalsRenderer) => void (goalsRenderer = fn);
+
 const settings: Screen = (main, _session, current) => {
   main.classList.add("settings", "wide");
   main.innerHTML = `
@@ -60,15 +65,10 @@ const settings: Screen = (main, _session, current) => {
             ${row("bills", "Monthly bills", "From your bills, so it isn't set here", `<span class="field ro"><span class="num" data-n="bills">—</span></span>`)}
             ${row("invest", "Invest habit", say("invest $200 a month"), money("invest", "Invest habit", "/mo"))}
             ${row("hourly", "Hourly pay", say("I make $40 an hour"), money("hourly", "Hourly pay", "/hr"))}
+            ${row("fund", "Where losses go", say("send losses to the S&P"), seg("fund", FUNDS, "Where losses go"))}
           </ul>
         </section>
-        <section aria-labelledby="g-goal">
-          <h2 id="g-goal">Saving</h2>
-          <ul class="rows">
-            ${row("goal", "Goal", say("save for a Tokyo trip, $2,400"), `<div class="goal-ed"><label class="field text"><input data-k="goal-name" maxlength="40" autocomplete="off" aria-label="Goal name"></label>${money("goal-price", "Goal price")}</div>`)}
-            ${row("fund", "Where losses go", say("send losses to the S&P"), seg("fund", FUNDS.map(([v, t, title]) => [v, t, title]), "Where losses go"))}
-          </ul>
-        </section>
+        <section class="goals-mount" aria-labelledby="g-goals"><h2 id="g-goals">Goals</h2></section>
         <section aria-labelledby="g-dime">
           <h2 id="g-dime">Dime</h2>
           <ul class="rows">
@@ -167,28 +167,20 @@ const settings: Screen = (main, _session, current) => {
     income: (s) => String(s.income),
     invest: (s) => String(s.invest),
     hourly: (s) => String(s.hourly),
-    "goal-name": (s) => s.goal.name,
-    "goal-price": (s) => String(s.goal.price),
     morning: (s) => s.morning,
   };
-  const rowOf = (k: string) => (k.startsWith("goal") ? "goal" : k);
   for (const input of main.querySelectorAll<HTMLInputElement>("input[data-k]")) {
     const k = input.dataset.k!;
     input.addEventListener("focus", () => {
-      if (last) input.value = raw[k](last);
+      if (last) input.value = k === "morning" ? raw[k](last) : usd(Number(raw[k](last)));
       if (input.type !== "time") input.select();
     });
     const commit = () => {
       if (!last) return;
       const v = input.value.trim();
-      if (v === raw[k](last)) return;
-      const n = Number(v.replace(/[$,\s]/g, ""));
-      if (k === "goal-name" || k === "goal-price") {
-        const name = k === "goal-name" ? v : last.goal.name;
-        const price = k === "goal-price" ? n : last.goal.price;
-        return void save("goal", { goal: { name, price, saved: last.goal.saved } });
-      }
-      void save(rowOf(k), { [k]: k === "morning" ? v : n } as Partial<Settings>);
+      const n = Number(v.replace(/[$,\s]/g, "").replace(/k$/i, "e3"));
+      if (k === "morning" ? v === raw[k](last) : n === Number(raw[k](last))) return;
+      void save(k, { [k]: k === "morning" ? v : n } as Partial<Settings>);
     };
     if (input.type === "time") input.addEventListener("change", commit);
     else {
@@ -196,7 +188,7 @@ const settings: Screen = (main, _session, current) => {
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") input.blur();
         if (e.key === "Escape") {
-          if (last) input.value = raw[k](last);
+          if (last) input.value = usd(Number(raw[k](last)));
           input.blur();
         }
       });
@@ -212,14 +204,14 @@ const settings: Screen = (main, _session, current) => {
     roll($('[data-n="bills"]'), usd(s.bills));
     roll($('[data-n="invest"]'), usd(s.invest));
     roll($('[data-n="hourly"]'), usd(s.hourly));
-    roll($('[data-n="goal-price"]'), usd(s.goal.price));
-    if (!focused("goal-name")) $<HTMLInputElement>('input[data-k="goal-name"]').value = s.goal.name;
     if (!focused("morning")) $<HTMLInputElement>('input[data-k="morning"]').value = s.morning;
     if (!busy("tone")) pick("tone", s.tone);
     if (!busy("fund")) pick("fund", s.fund);
     if (!busy("blackjack")) pick("blackjack", s.blackjack ? "on" : "off");
     if (!busy("tips")) pick("tips", s.tips ? "on" : "off");
   }
+
+  if (goalsRenderer) goalsRenderer($(".goals-mount"), alive);
 
   const tick = async () => {
     if (!alive()) return;

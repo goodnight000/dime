@@ -1,17 +1,16 @@
 // Settings (GET/POST /api/settings): the handful of variables behind Dime's numbers and manners.
-// The same fields the agent writes when he texts (set_tone, set_goal), so the page and the thread
+// The same fields the agent writes when he texts (set_tone, update_settings), so the page and the thread
 // never disagree. Every change applies at once: today's number is computed from these on read.
 import { state, type FundId } from "./state.ts";
 import { FUNDS } from "./funds-data.ts";
 
 export function settings() {
-  const { user: u, month: m, goal: g } = state;
+  const { user: u, month: m } = state;
   return {
     tone: u.tone,
     income: m.income,
     bills: m.bills,
     invest: m.invest,
-    goal: { name: g.name, price: g.price, saved: g.saved },
     fund: u.fund,
     morning: u.morning,
     hourly: u.hourly,
@@ -31,7 +30,7 @@ const bool = (v: unknown, what: string) => {
   return v;
 };
 
-/** Applies the fields present in `b` (all validated first, so a bad field changes nothing). */
+/** Goals live in their own feature (the Settings page's Goals group). Applies the fields present in `b` (all validated first, so a bad field changes nothing). */
 export function update(b: Record<string, unknown>) {
   const next: (() => void)[] = [];
   if ("tone" in b) {
@@ -68,17 +67,6 @@ export function update(b: Record<string, unknown>) {
   if ("tips" in b) {
     const v = bool(b.tips, "CFO tips");
     next.push(() => (state.user.tips = v));
-  }
-  if ("goal" in b) {
-    const g = (b.goal ?? {}) as Record<string, unknown>;
-    const name = typeof g.name === "string" ? g.name.trim().slice(0, 40) : "";
-    if (!name) throw new RangeError("The goal needs a name");
-    const price = num(g.price, 1, 100_000, "Goal price");
-    next.push(() => {
-      const was = state.goal;
-      // What's saved carries over (set_goal's rule); a new name drops the old emoji for a plain target.
-      state.goal = { name, price, saved: Math.min(was.saved, price), emoji: name === was.name ? was.emoji : "🎯" };
-    });
   }
   const income = "income" in b ? Number(b.income) : state.month.income;
   if (("income" in b || "invest" in b) && ("invest" in b ? Number(b.invest) : state.month.invest) > income)
