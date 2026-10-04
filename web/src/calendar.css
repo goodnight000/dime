@@ -116,7 +116,7 @@ main.dash .days .c {
   box-sizing: border-box;
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 4.75rem;
+  height: 4.25rem;
   padding: 6px 7px;
   border-radius: 8px;
   background: var(--h0);
@@ -211,7 +211,7 @@ main.dash .days .legend i {
   height: 0.875rem;
   border-radius: 3px;
 }
-main.dash .days .legend .h0 { background: var(--h0); margin: 0 4px; }
+main.dash .days .legend .h0 { background: var(--h0); margin: 0 4px; box-shadow: inset 0 0 0 1px var(--rule); }
 main.dash .days .legend .hp1 { background: var(--hp1); }
 main.dash .days .legend .hp2 { background: var(--hp2); }
 main.dash .days .legend .hp3 { background: var(--hp3); }
@@ -247,11 +247,6 @@ main.dash .days .dh .ib svg {
   width: 1rem;
   height: 1rem;
 }
-main.dash .days .fig {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
 main.dash .days .pane .big {
   margin-top: var(--s1);
   font-size: var(--step-2);
@@ -260,46 +255,12 @@ main.dash .days .pane .big {
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
-main.dash .days .fig .big {
-  margin-top: 0;
-}
-main.dash .days .tag {
-  padding: 2px var(--s2);
-  border-radius: 8px;
-  background: var(--bg-2);
-  font-size: var(--step--2);
-  font-weight: 500;
-  white-space: nowrap;
-}
-main.dash .days .tag.over {
-  background: color-mix(in srgb, var(--neg) 14%, var(--pane));
-  color: var(--neg);
-}
-main.dash .days .tag.under {
-  background: color-mix(in srgb, var(--pos) 14%, var(--pane));
-  color: var(--pos);
-}
 main.dash .days .pane .meta {
   margin-top: var(--s1);
   font-size: var(--step--1);
   color: var(--muted);
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
-}
-main.dash .days .line {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr);
-  gap: var(--s2);
-  margin-top: var(--s3);
-  padding-top: var(--s2);
-  border-top: 1px solid var(--rule);
-  font-size: var(--step--1);
-  line-height: 1.35;
-}
-main.dash .days .line .cue {
-  width: 1rem;
-  height: 1rem;
-  margin-top: 1px;
 }
 main.dash .days .scroll {
   flex: 1;
@@ -414,39 +375,33 @@ main.dash .days .lst .go:focus-visible {
 }
 
 /* ---- Recent activity: in vs out, one split bar, then the week by day ---- */
-main.dash .days .io {
+main.dash .days .week {
   display: flex;
+  align-items: end;
   gap: var(--s5);
-  margin-top: var(--s1);
+  margin-bottom: var(--s2);
 }
-main.dash .days .io p {
+main.dash .days .week p {
   display: grid;
   gap: 2px;
 }
-main.dash .days .io small {
-  font-size: var(--step--2);
+main.dash .days .week small {
+  font-size: var(--step--1);
+  font-weight: 500;
   color: var(--muted);
 }
-main.dash .days .io-n {
-  font-size: var(--step-1);
+main.dash .days .wk-n {
+  font-size: var(--step-2);
   font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
-main.dash .days .split {
-  display: flex;
-  gap: 2px;
-  height: 6px;
-  margin-top: var(--s2);
+main.dash .days .week .net .wk-n {
+  font-size: var(--step-0);
+  color: var(--muted);
+  padding-bottom: 0.2em;
 }
-main.dash .days .split i {
-  flex-basis: 0;
-  min-width: 2px;
-  border-radius: 3px;
-}
-main.dash .days .split .s-in { background: var(--pos); }
-main.dash .days .split .s-out { background: var(--neg); }
 main.dash .days .pane .big.pos { color: var(--pos); }
 main.dash .days .pane .big.neg { color: var(--neg); }
 main.dash .days .go-day {
@@ -467,4 +422,20 @@ main.dash .days .go-day:focus-visible {
 }
 main.dash .days .c[hidden] {
   display: none;
+}
+main.dash .days .wk-n {
+  white-space: nowrap;
+}
+@media (max-width: 759px) {
+  main.dash .days .week {
+    gap: var(--s3);
+    flex-wrap: wrap;
+  }
+  main.dash .days .wk-n {
+    font-size: var(--step-1);
+  }
+  main.dash .days .c {
+    height: 3.5rem;
+    padding: 4px;
+  }
 }

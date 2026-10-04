@@ -79,6 +79,7 @@ const demo: Record<string, (b: any) => unknown> = {
 };
 
 // The panel's log: demo actions (and async failures) interleaved with the thread, newest last.
+const turns: Record<Thread, Promise<void>> = { dime: Promise.resolve(), group: Promise.resolve() };
 const demoLog: { at: string; text: string; error?: boolean }[] = [];
 const logDemo = (text: string, error = false) => {
   demoLog.push({ at: now().toISOString(), text, error });
@@ -132,7 +133,9 @@ const server = Bun.serve({
           body: text,
           reply_to: quoted ? { id: quoted.id, direction: quoted.direction, body: quoted.body } : null,
         });
-        void reply(t, text).catch((e) => console.error("reply failed", e));
+        // One turn at a time per thread: a second text sent mid-turn would otherwise see the first
+        // still unanswered and answer it again.
+        turns[t] = turns[t].then(() => reply(t, text)).catch((e) => console.error("reply failed", e));
         return json({ id: msg.id, pending: true });
       },
     },

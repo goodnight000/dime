@@ -66,6 +66,7 @@ export function mountInvestments(el: HTMLElement): { tick: () => Promise<void> }
     </div>
     <section class="inv-from" aria-labelledby="inv-from-h">
       <h2 id="inv-from-h">Where it came from</h2>
+      <p class="put-in"><span class="num" data-k="cost">—</span> put in<span data-k="moves"></span></p>
       <ol class="crows"></ol>
     </section>`;
 
@@ -209,6 +210,9 @@ export function mountInvestments(el: HTMLElement): { tick: () => Promise<void> }
     roll(k("delta"), signed(d.month_delta, true));
     tone(k("delta"), d.month_delta);
     k("month").textContent = d.month_name;
+    roll(k("cost"), usd(d.cost, true));
+    const n = d.contributions.filter((c) => !c.waiting).length;
+    k("moves").textContent = n ? `, ${n} ${n === 1 ? "time" : "times"}` : "";
     roll(k("gain"), signed(d.gain, true));
     roll(k("gpct"), `(${pct(d.gain_pct)})`);
     tone(k("gain"), d.gain);

@@ -338,8 +338,11 @@
 }
 
 /* ---- Where it came from ---- */
-.inv-from h2 {
-  margin-bottom: var(--s3);
+.inv .put-in {
+  margin: var(--s1) 0 var(--s3);
+  font-size: var(--step--1);
+  color: var(--muted);
+  line-height: 1.35;
 }
 .inv .crows {
   list-style: none;
@@ -413,6 +416,9 @@
   .inv .frows > li > .brand,
   .inv .fv {
     grid-row: span 2;
+  }
+  .inv .fn > small {
+    white-space: normal;
   }
   .inv .risk {
     grid-column: 2;

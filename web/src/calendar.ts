@@ -60,6 +60,7 @@ const noData = (d: Day) => !d.future && !d.today && d.heat === 0 && !d.txns.leng
 
 export function mountCalendar(sec: HTMLElement) {
   sec.innerHTML = `
+    <div class="week" aria-label="Last 7 days"></div>
     <header class="cal-head">
       <div class="mnav">
         <h2 id="days-h">&nbsp;</h2>
@@ -160,14 +161,13 @@ export function mountCalendar(sec: HTMLElement) {
     const dayWord = (d: string) => (d === c.today ? "Today" : d === yest ? "Yesterday" : wkday.format(local(d)));
     const groups = new Map<string, typeof r.txns>();
     for (const t of r.txns) groups.set(t.date, [...(groups.get(t.date) ?? []), t]);
-    const total = r.in + r.out || 1;
+    // The week's money at the top of the work area: in and out with explicit signs, net quiet.
+    $(".week").innerHTML = `
+      <p><small>In, last 7 days</small><span class="wk-n pos">+${whole(r.in)}</span></p>
+      <p><small>Out</small><span class="wk-n neg">${usd(-Math.round(r.out))}</span></p>
+      <p class="net"><small>Net</small><span class="wk-n">${r.in - r.out >= 0 ? "+" : ""}${usd(Math.round(r.in - r.out))}</span></p>`;
     $(".mo").innerHTML = `
-      <p class="ey">Last 7 days</p>
-      <div class="io">
-        <p><small>In</small><span class="io-n pos">+${whole(r.in)}</span></p>
-        <p><small>Out</small><span class="io-n neg">${whole(r.out)}</span></p>
-      </div>
-      <div class="split" aria-hidden="true"><i class="s-in" style="flex-grow:${r.in / total}"></i><i class="s-out" style="flex-grow:${r.out / total}"></i></div>
+      <p class="ey">Recent activity</p>
       <div class="scroll">
         ${
           r.txns.length

@@ -20,7 +20,8 @@ type State = {
 };
 
 const drawn = new WeakSet<HTMLElement>();
-const date = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// A no-break space: roll() draws each character as its own column, and a plain space collapses.
+const date = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(" ", "\u00a0");
 const ROLL = `style="--roll-dur: var(--t-data); --roll-ease: var(--ease-in-out)"`;
 
 const girlmath: Renderer = (el, app) => {
