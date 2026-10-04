@@ -95,6 +95,9 @@ function buy(thread: Thread, item: string, amount: number) {
   if (amount > left)
     return speak(thread, `${asked} It's more than today's number: the answer is no. Say no, kindly or savagely per tone. Don't mention blackjack or betting.`,
       [`${item} for ${usd(amount)}? you've got ${usd(left)} today. that's a no 🙅`, `${item} = ${g.name} ${days} later fyi`]);
+  if (!state.user.blackjack) // Settings: impulse blackjack off
+    return speak(thread, `${asked} It fits in today's number. Impulse blackjack is off in his settings, so no game: tell him it fits and what it costs the goal.`,
+      [`${item} fits. ${usd(left - amount)} left today after`, `${item} = ${g.name} ${days} later fyi`]);
   const app = open("blackjack", { item, amount });
   return speak(thread, `${asked} It fits, so you offer him blackjack against you (call yourself "me", never "the CFO" or "the dealer"): win and the ${item} is on the house and doesn't count against today; lose and the ${usd(amount)} gets invested instead. The blackjack card follows your words.`,
     [`beat me and it's on the house 🃏`, `lose and the ${usd(amount)} gets invested. deal?`, app]);
@@ -154,5 +157,7 @@ export async function reply(thread: Thread, text: string): Promise<void> {
     const days = money.eta(state, at);
     return say(thread, `at your pace, ${g.name} in ${days} days ${g.emoji}`, `${day(money.etaDate(state, at, days))}. girl math says it's basically yours`);
   }
+  // "ok" / "lol thanks" with nothing new to say: silence, like the model (prompt.md).
+  if (text.length <= 20 && /^(ok|okay|k|kk|lol|lmao|haha|thanks|thank you|thx|ty|cool|nice|bet|got it)\b/i.test(text)) return;
   return say(thread, `${usd(left)} left today`, `ask me "should I buy X for $N" and we'll see 🃏`);
 }

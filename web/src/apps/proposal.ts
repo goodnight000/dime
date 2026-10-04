@@ -5,6 +5,7 @@
 import "./proposal.css";
 import type { Renderer } from "./index.ts";
 import { swap } from "../motion.ts";
+import { brand, hasBrand } from "../brands.ts";
 
 type Status = "open" | "working" | "done" | "declined" | "failed";
 type State = {
@@ -70,6 +71,7 @@ const proposal: Renderer = (el, app, act) => {
     if (a) {
       card.querySelector<HTMLElement>(".pr-art")!.hidden = false;
       text(card, ".pr-name b", a.name);
+      if (hasBrand(a.name)) card.querySelector(".pr-name")!.insertAdjacentHTML("beforebegin", brand(a.name));
       text(card, ".pr-note", a.note);
       text(card, ".pr-fig s", a.was);
       card.querySelector<HTMLElement>(".pr-arrow")!.hidden = !(a.was && a.now);

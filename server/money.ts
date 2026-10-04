@@ -54,16 +54,22 @@ export function spentToday(s: State, at: Date): number {
   return spent(within(s.txns, start, new Date(start.getTime() + DAY)));
 }
 
+/** Pay landed today beyond the month's plan, spread over the days left (tomorrow's pool has it). */
+function extraPay(s: State, start: Date, end: Date): number {
+  const landed = (to: Date) => sum(within(s.txns, monthStart(start), to).filter((t) => t.kind === "income"));
+  return Math.floor((Math.max(s.month.income, landed(end)) - Math.max(s.month.income, landed(start))) / daysLeft(start));
+}
+
 /** Today's allowance net of today's spend, losses and winnings; negative when overspent. */
 function net(s: State, at: Date): number {
   const start = dayStart(at);
   const end = new Date(start.getTime() + DAY);
-  return budget(s, at) - spentToday(s, at) - lost(s, start, end) + sum(within(s.bonus, start, end));
+  return budget(s, at) + extraPay(s, start, end) - spentToday(s, at) - lost(s, start, end) + sum(within(s.bonus, start, end));
 }
-/** Today's number. */
-export const today = (s: State, at: Date) => Math.max(0, net(s, at));
-/** How far past today's number the day went (0 if not). */
-export const over = (s: State, at: Date) => Math.max(0, -net(s, at));
+/** Today's number, in whole dollars (card charges have cents; the number doesn't). */
+export const today = (s: State, at: Date) => Math.max(0, Math.floor(net(s, at)));
+/** How far past today's number the day went (0 if not), in whole dollars. */
+export const over = (s: State, at: Date) => Math.max(0, Math.ceil(-net(s, at)));
 
 /** Girl math pace: average sweep over the last 7 days, else a quarter of today. Never below $1. */
 export function pace(s: State, at: Date): number {

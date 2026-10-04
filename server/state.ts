@@ -33,7 +33,12 @@ export type FriendTxn = { id: string; at: string; who: Friend; merchant: string;
 export type FundId = "VOO" | "QQQ" | "SOXX" | "DRAM" | "CASH";
 export type Account = { id: string; name: string; kind: "bank" | "brokerage"; connected: boolean };
 export type State = {
-  user: { name: "Charles"; tone: "savage" | "nice"; fund: FundId | null; hourly: number };
+  user: {
+    name: "Charles"; tone: "savage" | "nice"; fund: FundId | null; hourly: number;
+    morning: string; // "08:00", when the morning text goes out (Settings)
+    blackjack: boolean; // impulse buys can be played for (Settings)
+    tips: boolean; // CFO finds and money facts (Settings)
+  };
   month: { income: number; bills: number; invest: number };
   txns: Txn[];
   goal: { name: string; price: number; saved: number; emoji: string };
@@ -103,7 +108,7 @@ function seed(): State {
     [7, 62], [6, 48], [5, 71], [4, 39], [2, 83], [1, 95],
   ].map(([daysAgo, amount]) => ({ at: at(daysAgo, 23, 59), amount }));
   return {
-    user: { name: "Charles", tone: "savage", fund: null, hourly: 32 },
+    user: { name: "Charles", tone: "savage", fund: null, hourly: 32, morning: "08:00", blackjack: true, tips: true },
     month: { income: 10850, bills: 1700, invest: 0 },
     txns,
     goal: { name: "iPhone 17 Pro", price: 1099, saved: 650, emoji: "📱" },

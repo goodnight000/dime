@@ -88,8 +88,10 @@ export function unusual(txn: Txn): string {
   return `That's unusual: about ${x}x what he usually spends ${u.at === "merchant" ? `at ${txn.merchant}` : `on ${txn.category}`} (usually ${usd(u.amount)}).`;
 }
 
-/** An earlier charge with the same merchant and amount within 10 minutes: a likely double charge. */
+/** An earlier charge with the same merchant and amount within 10 minutes: a likely double charge.
+ *  Under $15 it's usually a second coffee, not a glitch, so small repeats pass. */
 export const duplicateOf = (txn: Txn) =>
+  txn.amount >= 15 &&
   state.txns.find((t) => t !== txn && t.kind === "spend" && t.merchant === txn.merchant && t.amount === txn.amount &&
     Math.abs(new Date(t.at).getTime() - new Date(txn.at).getTime()) <= 10 * 60_000);
 
@@ -110,7 +112,9 @@ export function suspicion(txn: Txn): string[] {
 export function nextPayday(at = now()): Date | null {
   const pay = state.txns.filter((t) => t.kind === "income" && t.merchant === "Payroll" && new Date(t.at) <= at).map((t) => new Date(t.at).getTime()).sort();
   if (pay.length < 2) return null;
-  const every = pay.at(-1)! - pay.at(-2)!;
+  // The rhythm: the gap between the last deposit and the one before it at least a week earlier.
+  const prev = [...pay].reverse().find((t) => pay.at(-1)! - t >= 7 * DAY);
+  const every = prev ? pay.at(-1)! - prev : 14 * DAY;
   let next = pay.at(-1)! + every;
   while (next <= at.getTime()) next += every;
   return new Date(next);
@@ -272,7 +276,8 @@ export function billHike(b: { merchant?: string; amount?: number } = {}) {
 /** A big payment leaves checking (the Sapphire autopay): if the runway to payday goes under the
  *  cushion, a heads-up with a move-from-savings card. */
 export function lowBalance(b: { amount?: number } = {}) {
-  const amount = Number(b.amount) || 5860;
+  // The statement (Japan flights, on the travel card for points), sized to leave ~$1,480 in checking.
+  const amount = Number(b.amount) || Math.max(1000, Math.round(balance("checking") - 1480));
   ingest({ merchant: "Chase Sapphire autopay", amount, category: "transfer", kind: "transfer" });
   const r = runway();
   if (r.left >= CUSHION) return speak("dime", `The Chase Sapphire autopay (${usd(amount)}) cleared; checking is ${usd(balance("checking"))}, plenty until payday. One short line at most.`, [`Sapphire autopay cleared. you're fine till payday 👍`]);

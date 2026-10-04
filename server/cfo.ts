@@ -155,6 +155,7 @@ export function findSavings() {
 
 /** Demo `cfo-scan`: one "Found N things." then a card per find not already on the table. */
 export function cfoScan() {
+  if (!state.user.tips) return say("dime", "CFO tips are off in settings. say \"tips on\" and I'll start looking again");
   const { fresh: finds, apps } = findSavings();
   if (!finds.length) return say("dime", "checked everything. nothing to fix. suspicious 🤨");
   const n = `${finds.length} thing${finds.length === 1 ? "" : "s"}`;

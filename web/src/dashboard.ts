@@ -3,6 +3,7 @@ import { api } from "./api.ts";
 import { roll, usd, signed } from "./num.ts";
 import { T, reduced, later } from "./motion.ts";
 import type { Screen } from "./main.ts";
+import { brand, categoryIcon } from "./brands.ts";
 
 // The dashboard (DESIGN.md §5): today's rail on the left, the money's work on the right. Every
 // figure is from GET /api/summary (server/summary.ts), polled every 2s; changed numbers roll.
@@ -78,6 +79,10 @@ const dashboard: Screen = (main, _session, current) => {
             <small><span class="num" data-k="saved" style="--roll-dur: var(--t-data); --roll-ease: var(--ease-in-out)">—</span> of <span class="num" data-k="price">—</span></small>
             <span class="eta">&nbsp;</span>
           </div>
+        </section>
+        <section class="recent" aria-labelledby="rc-h">
+          <h2 id="rc-h">Recent</h2>
+          <ul class="txs"></ul>
         </section>
       </aside>
       <div class="work">
@@ -241,7 +246,7 @@ const dashboard: Screen = (main, _session, current) => {
       list.dataset.key = key;
       list.innerHTML = s.spending.length
         ? s.spending
-            .map((c) => `<li data-c="${esc(c.category)}"><span class="cat">${esc(c.label)}</span><span class="bar"><i></i></span><span class="num amt"></span></li>`)
+            .map((c) => `<li data-c="${esc(c.category)}"><span class="cat">${categoryIcon(c.category)}<span>${esc(c.label)}</span></span><span class="bar"><i></i></span><span class="num amt"></span></li>`)
             .join("")
         : `<li class="empty">No spending yet this month.</li>`;
     }
@@ -324,6 +329,30 @@ const dashboard: Screen = (main, _session, current) => {
   }
 
 
+  // Recent: the last four card swipes and bills, from the bank feed Accounts shows (GET /api/accounts).
+  const clock = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+  let txKey: string | null = null;
+  function drawRecent(recent: { id: string; at: string; merchant: string; amount: number }[], now: string) {
+    const list = $(".txs");
+    const rows = recent.slice(0, 4);
+    const key = rows.map((t) => t.id).join();
+    if (key === txKey) return;
+    const before = new Set(txKey?.split(",") ?? []);
+    const animate = txKey !== null && !reduced();
+    txKey = key;
+    const today = new Date(now).toDateString();
+    list.innerHTML = rows.length
+      ? rows
+          .map((t) => {
+            const d = new Date(t.at);
+            const when = d.toDateString() === today ? clock.format(d) : short.format(d);
+            const amt = (t.amount > 0 ? "+" : "") + usd(t.amount, rows.some((x) => !Number.isInteger(x.amount)));
+            return `<li${animate && !before.has(t.id) ? ' class="in"' : ""}>${brand(t.merchant)}<span class="tt"><b>${esc(t.merchant)}</b><small>${when}</small></span><span class="v${t.amount > 0 ? " credit" : ""}">${amt}</span></li>`;
+          })
+          .join("")
+      : `<li class="empty">Connect Chase to see transactions.</li>`;
+  }
+
   const ro = new ResizeObserver(() => last && drawChart(last));
   ro.observe(chart);
 
@@ -332,10 +361,14 @@ const dashboard: Screen = (main, _session, current) => {
   const tick = async () => {
     if (!alive()) return ro.disconnect();
     try {
-      const s = await api<Summary>("GET", "/summary");
+      const [s, acct] = await Promise.all([
+        api<Summary>("GET", "/summary"),
+        api<{ recent: { id: string; at: string; merchant: string; amount: number }[] }>("GET", "/accounts").catch(() => null),
+      ]);
       if (!alive()) return ro.disconnect();
       cached = s;
       draw(s);
+      if (acct) drawRecent(acct.recent, s.now);
       // First paint is still (§ rule 3): transitions stay off until the first data is laid out.
       if (board.classList.contains("still")) void board.offsetWidth, board.classList.remove("still");
       board.classList.remove("stale");

@@ -13,6 +13,7 @@ import { FUNDS, RISK, fund } from "../funds-data.ts";
 import { accounts } from "../accounts.ts";
 import { summary } from "../summary.ts";
 import { usd } from "../voice.ts";
+import { update as updateSettings } from "../settings.ts";
 
 const DAY = 86_400_000;
 const date = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -226,6 +227,7 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
         const left = money.today(state, now());
         if (!(price > 0)) throw new Error("price must be positive");
         if (price > left) throw new Error(`Can't bet $${price}: only $${left} left today. Tell him, with girl_math.`);
+        if (!state.user.blackjack) throw new Error("Impulse blackjack is off in his Settings. No card: just tell him whether it fits.");
         apps.push(open("blackjack", { item, amount: price }));
         return { sent: true, item, price, today_left: left };
       },
@@ -277,6 +279,23 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       ({ tone }) => {
         state.user.tone = tone;
         return { tone };
+      },
+    ),
+    tool(
+      "update_settings",
+      "Change his settings when he asks (the same ones as the Settings page): monthly take-home pay, monthly invest habit (set aside before today's number), hourly pay (for hours-of-work math), the morning text time (24h HH:MM), where blackjack losses go (fund), impulse blackjack on/off, CFO tips on/off. Only the fields he changed. Tone and goal have their own tools.",
+      Type.Object({
+        income: Type.Optional(Type.Number()),
+        invest: Type.Optional(Type.Number()),
+        hourly: Type.Optional(Type.Number()),
+        morning: Type.Optional(Type.String({ description: "24h HH:MM, e.g. 07:30" })),
+        fund: Type.Optional(Type.Union(FUNDS.map((f) => Type.Literal(f.id)))),
+        blackjack: Type.Optional(Type.Boolean()),
+        tips: Type.Optional(Type.Boolean()),
+      }),
+      (args) => {
+        const s = updateSettings(args as Record<string, unknown>);
+        return { ...s, today: money.today(state, now()) };
       },
     ),
   ];

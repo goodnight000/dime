@@ -4,6 +4,7 @@ import { now } from "./clock.ts";
 import * as money from "./money.ts";
 import { summary } from "./summary.ts";
 import * as accounts from "./accounts.ts";
+import { settings, update as updateSettings } from "./settings.ts";
 import { run } from "./apps/index.ts";
 import { refresh as refreshToday } from "./apps/today.ts";
 import { post, reply } from "./voice.ts";
@@ -142,6 +143,17 @@ const server = Bun.serve({
     },
 
     "/api/summary": () => json(summary()),
+
+    "/api/settings": {
+      GET: () => json(settings()),
+      POST: async (req) => {
+        try {
+          return json(updateSettings(await body(req)));
+        } catch (e) {
+          return bad((e as Error).message);
+        }
+      },
+    },
 
     "/api/accounts": () => json(accounts.accounts()),
     "/api/accounts/:id/connect": {

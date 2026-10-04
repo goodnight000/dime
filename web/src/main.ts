@@ -3,6 +3,7 @@ import { api, type Session } from "./api.ts";
 import chat from "./chat.ts";
 import dashboard, { prime } from "./dashboard.ts";
 import accounts from "./accounts.ts";
+import settings from "./settings.ts";
 import demo from "./demo.ts";
 import { hydrateIcons } from "./icons.ts";
 import { face } from "./people.ts";
@@ -21,6 +22,7 @@ const screens: Record<string, Screen> = {
   "/group": chat("group"),
   "/dashboard": dashboard,
   "/accounts": accounts,
+  "/settings": settings,
   "/demo": demo,
 };
 let main = document.querySelector("main")!;

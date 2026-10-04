@@ -50,6 +50,10 @@
 .pr-name {
   display: grid;
   min-width: 0;
+  margin-right: auto; /* name hugs its mark; the figure keeps the right edge */
+}
+.pr-art > .brand {
+  margin-right: calc(0.625rem - var(--s3)); /* mark-to-name 0.625rem, inside the row's s3 gap */
 }
 .pr-name b {
   font-weight: 500;

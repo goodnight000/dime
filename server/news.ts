@@ -12,38 +12,38 @@ export type Topic = "delivery" | "rideshare" | "coffee" | "subscriptions" | "sho
 
 const FACTS: Record<Topic, Fact[]> = {
   delivery: [
-    { text: "Restaurants pay DoorDash 15 to 30% on delivery orders. One reason the app menu often costs more than the counter.", source: "DoorDash merchant pricing" },
+    { text: "restaurants pay DoorDash 15 to 30% on delivery orders. One reason the app menu often costs more than the counter.", source: "DoorDash merchant pricing" },
     { text: "DoorDash's service fee scales with your subtotal, on top of the delivery fee. Bigger order, bigger fee.", source: "DoorDash fees help page" },
   ],
   rideshare: [
-    { text: "Surge pricing means the same ride costs more when demand spikes. Waiting a few minutes can bring it back down.", source: "Uber surge pricing help page" },
+    { text: "surge pricing means the same ride costs more when demand spikes. Waiting a few minutes can bring it back down.", source: "Uber surge pricing help page" },
   ],
   coffee: [
-    { text: "The \"latte factor\" is David Bach's idea: small daily buys add up. $7 a day is $2,555 a year.", source: "David Bach, The Automatic Millionaire" },
+    { text: "the \"latte factor\" is David Bach's idea: small daily buys add up. $7 a day is $2,555 a year.", source: "David Bach, The Automatic Millionaire" },
   ],
   subscriptions: [
-    { text: "In a C+R Research survey people guessed they spent $86 a month on subscriptions. The real number was $219.", source: "C+R Research, 2022" },
+    { text: "in a C+R Research survey people guessed they spent $86 a month on subscriptions. The real number was $219.", source: "C+R Research, 2022" },
   ],
   shopping: [
-    { text: "Prices end in .99 because of the left-digit effect: your brain reads $29.99 as twenty-something, not thirty.", source: "Thomas & Morwitz, Journal of Consumer Research, 2005" },
+    { text: "prices end in .99 because of the left-digit effect: your brain reads $29.99 as twenty-something, not thirty.", source: "Thomas & Morwitz, Journal of Consumer Research, 2005" },
   ],
   credit: [
-    { text: "In Fed data, card rates on balances that carry interest topped 20% in 2023 and 2024. Paying in full skips all of it.", source: "Federal Reserve G.19" },
-    { text: "Payment history is 35% of a FICO score, the biggest single piece. One autopay saves a lot of pain.", source: "myFICO" },
+    { text: "in Fed data, card rates on balances that carry interest topped 20% in 2023 and 2024. Paying in full skips all of it.", source: "Federal Reserve G.19" },
+    { text: "payment history is 35% of a FICO score, the biggest single piece. One autopay saves a lot of pain.", source: "myFICO" },
   ],
   investing: [
-    { text: "Rule of 72: divide 72 by your yearly return to get the years it takes money to double. At 8%, about 9 years.", source: "Rule of 72" },
+    { text: "rule of 72: divide 72 by your yearly return to get the years it takes money to double. At 8%, about 9 years.", source: "Rule of 72" },
     { text: "S&P's SPIVA scorecards keep finding nearly 9 in 10 US large-cap fund managers trail the S&P 500 over 15 years.", source: "S&P Dow Jones Indices, SPIVA" },
     { text: "VOO charges 0.03% a year. That's $3 on every $10,000.", source: "Vanguard" },
-    { text: "Over 20 years, missing just the 10 best days in the market cut the ending value by more than half. Time in beats timing.", source: "J.P. Morgan Guide to Retirement" },
+    { text: "over 20 years, missing just the 10 best days in the market cut the ending value by more than half. Time in beats timing.", source: "J.P. Morgan Guide to Retirement" },
     { text: "Einstein never called compound interest the eighth wonder of the world. There's no record of him saying it. Still true though.", source: "Quote Investigator" },
-    { text: "The S&P 500 has averaged around 10% a year since 1926, before inflation, with some ugly years in between.", source: "S&P Dow Jones Indices" },
+    { text: "the S&P 500 has averaged around 10% a year since 1926, before inflation, with some ugly years in between.", source: "S&P Dow Jones Indices" },
   ],
   saving: [
     { text: "FDIC insurance covers $250,000 per depositor, per bank, per ownership category.", source: "FDIC" },
-    { text: "In the Fed's yearly survey, more than a third of US adults wouldn't cover a surprise $400 expense with cash.", source: "Federal Reserve SHED" },
-    { text: "The FDIC's national average savings rate is a fraction of what online high-yield accounts pay. Check yours.", source: "FDIC national rates" },
-    { text: "At 3% inflation, prices double in about 24 years. Cash under the mattress loses.", source: "Rule of 72" },
+    { text: "in the Fed's yearly survey, more than a third of US adults wouldn't cover a surprise $400 expense with cash.", source: "Federal Reserve SHED" },
+    { text: "the FDIC's national average savings rate is a fraction of what online high-yield accounts pay. Check yours.", source: "FDIC national rates" },
+    { text: "at 3% inflation, prices double in about 24 years. Cash under the mattress loses.", source: "Rule of 72" },
   ],
 };
 

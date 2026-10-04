@@ -1,6 +1,7 @@
 import "./accounts.css";
 import { api } from "./api.ts";
 import { icon } from "./icons.ts";
+import { brand } from "./brands.ts";
 import { usd } from "./num.ts";
 import { T, reduced, later, swap } from "./motion.ts";
 import type { Screen } from "./main.ts";
@@ -54,7 +55,7 @@ const accounts: Screen = (main, _session, current) => {
   function row(a: Account): HTMLElement {
     const li = document.createElement("li");
     li.innerHTML = `<div class="row svc">
-      <span class="svc-gl">${icon(a.glyph === "mark" ? "cue" : a.glyph)}${RING}${BADGE}</span>
+      <span class="svc-gl">${brand(a.name)}${RING}${BADGE}</span>
       <span class="t"><b></b><span class="slot sub"><small></small><small></small></span></span>
       <span class="slot act">
         <span class="go"><button class="pill sm" type="button">Connect</button></span>
@@ -169,7 +170,7 @@ const accounts: Screen = (main, _session, current) => {
     txns.replaceChildren(
       ...d.recent.map((t, i) => {
         const li = document.createElement("li");
-        li.innerHTML = `<div class="row tx"><span class="t"><b></b><small></small></span><span class="v"></span></div>`;
+        li.innerHTML = `<div class="row tx">${brand(t.merchant)}<span class="t"><b></b><small></small></span><span class="v"></span></div>`;
         li.querySelector("b")!.textContent = t.merchant;
         li.querySelector("small")!.textContent = short.format(new Date(t.at));
         const v = li.querySelector<HTMLElement>(".v")!;

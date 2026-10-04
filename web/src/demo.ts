@@ -45,6 +45,26 @@ const SECTIONS: Section[] = [
   { title: "Should I buy", buttons: [["Sneakers $280", "S", "say", { thread: "dime", text: "should I buy these sneakers for $280?" }]] },
   { title: "CFO", buttons: [["Scan", "C", "cfo-scan"]] },
   {
+    // Simulated bank / brokerage / Venmo data landing (server/simulate.ts); Dime reacts to each.
+    title: "Events",
+    buttons: [
+      ["Paycheck $5,425", "", "paycheck"],
+      ["Refund", "", "refund"],
+      ["Double charge", "", "duplicate"],
+      ["Was this you?", "", "suspicious"],
+      ["Trial converting", "", "trial"],
+      ["Verizon went up", "", "bill-hike"],
+      ["Low balance", "", "low-balance"],
+      ["QQQ −4.2%", "", "market", { fund: "QQQ", pct: -4.2 }],
+      ["VOO +2.1%", "", "market", { fund: "VOO", pct: 2.1 }],
+      ["Goal milestone", "", "milestone"],
+      ["Under streak", "", "streak"],
+      ["Sam paid you $32", "", "venmo-paid"],
+      ["Maya requests $26", "", "venmo-request"],
+      ["Weekly recap", "", "weekly-recap"],
+    ],
+  },
+  {
     title: "Group",
     buttons: [
       ["Post Penny claim", "P", "say", { thread: "group", text: "Will Penny spend $80 on DoorDash today?" }],

@@ -406,7 +406,7 @@ main.dash .bars {
 }
 main.dash .bars li {
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr) 6ch;
+  grid-template-columns: 8rem minmax(0, 1fr) 6ch;
   align-items: center;
   gap: var(--s3);
   min-height: 1.75rem;
@@ -417,9 +417,21 @@ main.dash .bars li.empty {
   color: var(--muted);
 }
 main.dash .bars .cat {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  white-space: nowrap;
+}
+main.dash .bars .cat > span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+main.dash .bars .cat > svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--muted);
 }
 main.dash .bars .amt {
   justify-self: end;
@@ -579,5 +591,70 @@ main.dash .board.stale .rail {
   main.dash .wk,
   main.dash .cal {
     grid-template-columns: repeat(7, minmax(0, 2.75rem));
+  }
+}
+
+/* Recent, under the goal in the rail: four dividered rows, no container (the rail's key-values'
+   grammar). The list reserves its four rows, so a new swipe never moves the rail. */
+main.dash .recent h2 {
+  font-size: var(--step-0);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 var(--s2);
+}
+main.dash .txs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: calc(4 * 2.75rem);
+}
+main.dash .txs > li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  border-top: 1px solid var(--rule);
+}
+main.dash .txs .tt {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+main.dash .txs .tt b {
+  font-size: var(--step--1);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .txs .tt small {
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .txs .v {
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+main.dash .txs .v.credit {
+  color: var(--money);
+}
+main.dash .txs > li.empty {
+  display: block;
+  padding-top: var(--s2);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.dash .txs > li.in {
+  animation: tx-in var(--t-move) var(--ease-out);
+}
+@keyframes tx-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (max-width: 759px) {
+  main.dash .recent {
+    order: 6;
   }
 }
