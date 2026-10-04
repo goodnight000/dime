@@ -1,0 +1,1975 @@
+/* Tokens copied from apps/site/src/style.css, plus --bg-2, --seam, --danger, --radius, and one
+   accent (--blue, the owner's side of the thread; lighter in dark). Our own glyphs stay in the
+   text color; only other services' marks carry color. Appearance: `data-theme` on <html> when the owner chose
+   (settings.ts), else prefers-color-scheme.
+   --pane is the one raised surface, the work beside the sidebar; in dark it is lighter than the
+   page, which is how elevation reads there. --bg-2 sits on the pane: bubbles, fields, glyphs.
+   Type scale: step--2 .75 / step--1 .875 / step-0 1.0625 / step-1 1.5 / step-2 2.25.
+   Space ramp: s1..s6. */
+:root {
+  color-scheme: light;
+  --bg: #eeeeeb;
+  --pane: #f7f7f4;
+  --bg-2: #e3e3df;
+  --fg: #171716;
+  --muted: #6b6b66;
+  --rule: color-mix(in srgb, var(--fg) 12%, transparent);
+  --seam: #fff0d2;
+  --seam-wash: color-mix(in srgb, var(--seam) 55%, var(--bg));
+  --ink: #171716;
+  --cue: #526b7a;
+  --cue-fg: #f2f5f6;
+  --danger: #b5514a;
+  --blue: #3b6fd6;
+  --green: #3f8f5f;
+  --amber: #c98a2e;
+  --violet: #7a62b0;
+  --font: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.5rem;
+  --step-2: 2.25rem;
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 1rem;
+  --s4: 1.5rem;
+  --s5: 2.5rem;
+  --s6: 4rem;
+  --step--2: 0.75rem;
+  --radius: 14px;
+  --pane-r: 18px;
+  --col: 38rem;
+  --bar: 4rem;
+  --tabs: 4.25rem;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --quick: 200ms ease;
+  --move: 320ms var(--ease-out);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --pane: #1c1c1a;
+  --bg-2: #282826;
+  --fg: #e4e3df;
+  --muted: #8a8983;
+  --seam-wash: color-mix(in srgb, var(--seam) 12%, var(--bg-2));
+  --blue: #4b7fd6;
+  --green: #77b892;
+  --amber: #dcae66;
+  --violet: #a08fd0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --pane: #1c1c1a;
+    --bg-2: #282826;
+    --fg: #e4e3df;
+    --muted: #8a8983;
+    --seam-wash: color-mix(in srgb, var(--seam) 12%, var(--bg-2));
+    --blue: #4b7fd6;
+    --green: #77b892;
+    --amber: #dcae66;
+    --violet: #a08fd0;
+  }
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 100%;
+  transition:
+    background-color var(--move),
+    color var(--move);
+}
+body {
+  margin: 0;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  -webkit-font-smoothing: antialiased;
+}
+body.out {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Every glyph is a <use> of the sprite: one stroke style, sized by its context. */
+svg {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+/* Charade icons sit inline on their own; here, like every glyph, they are blocks. */
+svg.ic {
+  display: block;
+}
+svg.brand {
+  stroke: none;
+}
+/* `all: unset` on the buttons would otherwise beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+/* Motion: three moves, each on the one thing doing work. `rise` brings a screen in, `pop`
+   lands a new bubble or a swapped glyph, `breathe` is the agent's capture light. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes breathe {
+  50% {
+    box-shadow: 0 0 0 12px var(--seam-wash);
+  }
+}
+main > * {
+  animation: rise var(--move) both;
+}
+
+/* The sidebar: the wordmark, the conversation with the agent (its face, its name), the places
+   around it, and log out at the foot. The current place is a filled row, as in Messages. */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4) var(--s3) var(--s3);
+  min-height: 0;
+}
+.wordmark {
+  color: var(--fg);
+  padding-left: 0.6rem;
+}
+.wordmark svg {
+  height: 1.3rem;
+  width: auto;
+  aspect-ratio: 262 / 100;
+  overflow: visible;
+  stroke: none;
+}
+.side nav {
+  display: grid;
+  gap: 2px;
+}
+.side nav a {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: var(--step--1);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    color var(--quick),
+    background-color var(--quick);
+}
+.side nav a svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  justify-self: center;
+}
+.side nav a:hover {
+  color: var(--fg);
+}
+.side nav a[aria-current] {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+/* The conversation is the first row and the largest: the agent's face and name, like a contact. */
+.side nav a.convo {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  padding-block: 0.6rem;
+  margin-bottom: var(--s3);
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--fg);
+}
+.side nav a.convo svg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.side .logout {
+  margin-top: auto;
+}
+nav a:focus-visible,
+.icon:focus-visible,
+.pill:focus-visible,
+.link:focus-visible,
+.send:focus-visible,
+.answers button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
+}
+/* A phone: the sidebar folds into a tab bar along the bottom edge, where thumbs are. */
+@media (max-width: 759px) {
+  body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .side {
+    grid-row: 2;
+    padding: var(--s1) var(--s2) calc(var(--s1) + env(safe-area-inset-bottom));
+    background: var(--pane);
+    border-top: 1px solid var(--rule);
+  }
+  .wordmark,
+  .side .logout {
+    display: none;
+  }
+  .side nav {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  .side nav a,
+  .side nav a.convo {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .side nav a.convo svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .side nav a[aria-current] {
+    color: var(--fg);
+    background: none;
+  }
+}
+/* Signed out: no sidebar at all; the gate has the whole window. */
+body.out .side {
+  display: none;
+}
+
+/* Icon buttons: the only kind of button that is not a pill. */
+.icon {
+  all: unset;
+  cursor: pointer;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition:
+    color var(--quick),
+    background-color var(--quick),
+    transform var(--quick);
+}
+.icon svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+.icon:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+.icon:active {
+  transform: scale(0.92);
+}
+.icon.danger:hover {
+  color: var(--danger);
+}
+.icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Two glyphs share one slot; `.done` swaps them in place, the new one popping in. */
+.icon .alt,
+.icon.done .main {
+  display: none;
+}
+.icon.done .alt {
+  display: block;
+  animation: pop 240ms var(--ease-out);
+}
+
+/* The pane every screen renders in, its content held to one reading column. */
+main {
+  margin: var(--s2) var(--s2) var(--s2) 0;
+  padding: var(--s4) max(var(--s4), calc((100% - var(--col)) / 2)) var(--s6);
+  border-radius: var(--pane-r);
+  background: var(--pane);
+  overflow-y: auto;
+  box-sizing: border-box;
+  transition: background-color var(--move);
+}
+body.out main {
+  margin: 0;
+  border-radius: 0;
+}
+@media (max-width: 759px) {
+  main {
+    margin: 0;
+    border-radius: 0;
+  }
+}
+/* A page's head: its title set large at the left of the column, and at most one action at the
+   right. It replaces the centred glyph-on-a-tile heading, which read as a template. */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin: var(--s3) 0 var(--s5);
+}
+.page-head h1 {
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+/* Wide pages (accounts, vault) use the horizontal axis; the reading column grows to hold two. */
+main.wide {
+  --col: 60rem;
+}
+/* The status dot: live (green), attention (amber), off (red). Colour always travels with a word. */
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  flex: none;
+  background: var(--muted);
+}
+.dot.live {
+  background: var(--green);
+}
+.dot.warn {
+  background: var(--amber);
+}
+.dot.off {
+  background: var(--danger);
+}
+h1 {
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+h2 {
+  font-size: var(--step-0);
+  font-weight: 500;
+  margin: 0;
+}
+p {
+  font-size: var(--step-0);
+  line-height: 1.5;
+  margin: 0;
+}
+.note {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.muted {
+  color: var(--muted);
+}
+/* A glyph on a disc: the row's kind, the head's section. */
+.glyph {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--fg);
+  background: var(--bg-2);
+  transition: background-color var(--move);
+}
+.glyph svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+/* Lists: dividered rows inside one container. Inner radius = outer radius − 1px border. */
+.rows {
+  list-style: none;
+  margin: var(--s4) 0 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.rows > li + li {
+  border-top: 1px solid var(--rule);
+}
+.row {
+  all: unset;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.7rem 0.7rem 0.85rem;
+  font: inherit;
+  font-size: var(--step-0);
+  color: var(--fg);
+  transition: background-color var(--quick);
+}
+li:first-child > .row {
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+}
+li:last-child > .row {
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+}
+button.row {
+  cursor: pointer;
+}
+button.row:hover {
+  background: var(--bg-2);
+}
+button.row:hover .icon {
+  color: var(--fg);
+  transform: translateX(3px);
+}
+.row .hit {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+  grid-column: 1 / 3;
+  margin: -0.7rem 0 -0.7rem -0.85rem;
+  padding: 0.7rem 0 0.7rem 0.85rem;
+  border-radius: inherit;
+}
+.row .hit:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+}
+.row:has(.hit:hover) {
+  background: var(--bg-2);
+}
+.row .t {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.row .t b {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.row .t small {
+  font-size: var(--step--1);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .t .passkey-status {
+  white-space: normal;
+}
+.row .v {
+  font-variant-numeric: tabular-nums;
+}
+.rows .empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--s2);
+  padding: var(--s5) var(--s3);
+  color: var(--muted);
+  font-size: var(--step--1);
+  text-align: center;
+}
+.rows .empty svg {
+  width: 2rem;
+  height: 2rem;
+  stroke-width: 1.5;
+}
+
+/* The agent: the Messages conversation. A contact header, the thread, and the composer holding
+   the bottom edge; all three share one centered column inside the pane. */
+main.chat {
+  --thread: max(var(--s3), calc((100% - 44rem) / 2));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0;
+  overflow: hidden;
+}
+.contact {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: var(--s3) 0 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--step--2);
+  font-weight: 500;
+}
+.contact .cue-face {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+.thread {
+  list-style: none;
+  margin: 0;
+  padding: var(--s3) var(--thread);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* Bubbles. A run of one sender's messages is tight; the last of a run grows the tail. */
+.b {
+  position: relative;
+  max-width: min(70%, 30rem);
+  padding: 0.45rem 0.85rem 0.5rem;
+  border-radius: 18px;
+  font-size: var(--step-0);
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.b.first {
+  margin-top: 0.6rem;
+}
+.b.out {
+  --tone: var(--bg-2);
+  align-self: flex-start;
+  background: var(--tone);
+  transform-origin: bottom left;
+}
+.b.in {
+  --tone: var(--blue);
+  align-self: flex-end;
+  background: var(--tone);
+  color: #eeeeeb;
+  transform-origin: bottom right;
+}
+/* The tail: a bubble-coloured corner, carved by a pane-coloured one laid over its outer edge. */
+.b.last::before,
+.b.last::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 20px;
+}
+.b.last::before {
+  width: 20px;
+  background: var(--tone);
+}
+.b.last::after {
+  width: 10px;
+  background: var(--pane);
+  transition: background-color var(--move);
+}
+.b.in.last::before {
+  right: -7px;
+  border-bottom-left-radius: 16px 14px;
+}
+.b.in.last::after {
+  right: -10px;
+  border-bottom-left-radius: 10px;
+}
+.b.out.last::before {
+  left: -7px;
+  border-bottom-right-radius: 16px 14px;
+}
+.b.out.last::after {
+  left: -10px;
+  border-bottom-right-radius: 10px;
+}
+.b.new {
+  animation: pop 260ms var(--ease-out) both;
+}
+/* One to three emoji and nothing else: no bubble, set large. */
+.b.jumbo {
+  background: none;
+  padding: 0 0.1rem;
+  font-size: 2.75rem;
+  line-height: 1.15;
+}
+.b.jumbo::before,
+.b.jumbo::after {
+  content: none;
+}
+.b.sending {
+  opacity: 0.6;
+}
+/* Not Delivered: the red mark beside the bubble, the words under it; clicking it sends again. */
+.b.failed {
+  cursor: pointer;
+  margin-right: 1.9rem;
+  margin-bottom: 1.2rem;
+}
+.b.failed::before {
+  content: "!";
+  right: -1.9rem;
+  bottom: 0.15rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--danger);
+  color: #eeeeeb;
+  font-size: var(--step--2);
+  font-weight: 600;
+}
+.b.failed::after {
+  content: "Not Delivered";
+  top: 100%;
+  bottom: auto;
+  right: 0;
+  width: max-content;
+  height: auto;
+  margin-top: 0.2rem;
+  background: none;
+  color: var(--danger);
+  font-size: var(--step--2);
+}
+.b a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+}
+.b .delivery {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: var(--step--2);
+  color: var(--muted);
+  white-space: normal;
+}
+.b .delivery:is(.failed, .unknown, .choice_required) {
+  color: var(--danger);
+}
+/* "Today 9:41 AM" opens each day, a time marks a long gap, "Delivered" sits under your latest. */
+.day,
+.when {
+  align-self: center;
+  margin: var(--s4) 0 var(--s1);
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+.day b {
+  font-weight: 600;
+}
+.day + .b,
+.when + .b {
+  margin-top: 0;
+}
+.delivered {
+  align-self: flex-end;
+  margin: 0.2rem 0.2rem 0 0;
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--muted);
+}
+/* The agent thinking: three dots breathing in a bubble of its own. */
+.b.typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+}
+.b.typing i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  animation: dot 1.2s ease-in-out infinite;
+}
+.b.typing i:nth-child(2) {
+  animation-delay: 150ms;
+}
+.b.typing i:nth-child(3) {
+  animation-delay: 300ms;
+}
+@keyframes dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+/* A tapback: the agent's 👀 on your message while it works on it, on the bubble's top corner. */
+.tapback {
+  position: absolute;
+  top: -0.85rem;
+  left: -0.85rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 2px var(--pane);
+  animation: pop 260ms var(--ease-out) both;
+}
+.b:has(.tapback) {
+  margin-top: 0.9rem;
+}
+/* Your own tapback: blue, on the corner facing the thread's middle, as in Messages. */
+.tapback.mine {
+  background: var(--blue);
+  box-shadow: 0 0 0 2px var(--pane);
+}
+.b.out .tapback.mine {
+  left: auto;
+  right: -0.85rem;
+}
+/* Beside a hovered bubble: react and reply. On the agent's side it sits right, on yours left. */
+.bubble-actions {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+  z-index: 2;
+}
+.b.out .bubble-actions {
+  left: calc(100% + 0.5rem);
+}
+.b.in .bubble-actions {
+  right: calc(100% + 0.5rem);
+}
+.bubble-actions button,
+.tapback-picker button {
+  all: unset;
+  cursor: pointer;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition:
+    background-color var(--quick),
+    color var(--quick),
+    transform var(--quick);
+}
+.bubble-actions button:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+.bubble-actions svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+/* The tapback picker: the six reactions in a bar over the bubble. */
+.tapback-picker {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  padding: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--pane);
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--fg) 35%, transparent);
+  animation: pop 200ms var(--ease-out) both;
+}
+.b.out .tapback-picker {
+  left: 0;
+  transform-origin: bottom left;
+}
+.b.in .tapback-picker {
+  right: 0;
+  transform-origin: bottom right;
+}
+.tapback-picker button {
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.15rem;
+}
+.tapback-picker button:hover {
+  transform: scale(1.15);
+}
+.tapback-picker button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--blue) 18%, transparent);
+}
+.bubble-actions button:focus-visible,
+.tapback-picker button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+}
+/* An inline reply: the message it answers, small and faded above it, joined by a thin line. */
+/* Nothing in the thread shrinks to fit: the thread scrolls instead. */
+.thread > * {
+  flex-shrink: 0;
+}
+.thread .quote {
+  position: relative;
+  max-width: min(60%, 24rem);
+  margin: 0.8rem 0 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--muted);
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.thread .quote.in {
+  align-self: flex-end;
+}
+.thread .quote.out {
+  align-self: flex-start;
+}
+.thread .quote:hover {
+  color: var(--fg);
+}
+.thread .quote + .b {
+  margin-top: 0;
+}
+.b.flash {
+  animation: flash 900ms ease-out;
+}
+@keyframes flash {
+  25% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 35%, transparent);
+  }
+}
+/* Replying: the message you are answering, above the field, with a way out. */
+.compose .replying {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 0.25rem 0 1rem;
+  border-left: 2px solid var(--blue);
+  margin-bottom: var(--s1);
+}
+.compose .replying[hidden] {
+  display: none;
+}
+.compose .replying .rq {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.compose .replying .icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+/* The agent's numbered choices, as replies you can tap. */
+.chips {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+.chips button {
+  all: unset;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
+  color: var(--blue);
+  font-size: var(--step--1);
+  font-weight: 500;
+  transition: background-color var(--quick);
+}
+.chips button:hover {
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
+.chips button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
+}
+/* An ask: the agent's bubble with its two answers inside, like a Messages request. Answered, the
+   buttons give way to the outcome. */
+.asks {
+  display: flex;
+  flex-direction: column;
+}
+.proposals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.proposals .when {
+  margin-top: var(--s3);
+}
+.b.ask {
+  width: min(70%, 22rem);
+  padding: 0;
+  white-space: normal;
+  margin-top: 0.6rem;
+}
+.ask .summary {
+  padding: 0 0.85rem 0.65rem;
+  font-size: var(--step-0);
+  line-height: 1.35;
+}
+.ask small {
+  display: block;
+  padding: 0.6rem 0.85rem 0.2rem;
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+/* The artifact inside an ask: a small card set into the bubble, drawn as the real thing. */
+.b.ask.has-artifact {
+  width: min(78%, 25rem);
+}
+.ask .artifact {
+  margin: 0 0.6rem 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  background: var(--pane);
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+.preview.email .head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: var(--step--2);
+}
+.preview.email .head svg {
+  width: 1rem;
+  height: 1rem;
+}
+.preview .subject {
+  display: block;
+  margin-top: 0.3rem;
+  font-weight: 600;
+}
+.preview .body {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: var(--step--1);
+  white-space: pre-wrap;
+}
+.preview.post .body {
+  -webkit-line-clamp: 6;
+  margin: 0;
+  color: var(--fg);
+}
+.preview.event {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+.preview .date {
+  display: grid;
+  justify-items: center;
+  padding: 0.25rem 0 0.35rem;
+  border-radius: 9px;
+  background: var(--bg-2);
+}
+.preview .date .mon {
+  font-size: var(--step--2);
+  font-weight: 600;
+  color: var(--danger);
+  text-transform: uppercase;
+}
+.preview .date .d {
+  font-size: var(--step-1);
+  font-weight: 500;
+  line-height: 1;
+}
+.preview.event > div:last-child {
+  display: grid;
+  gap: 0.1rem;
+}
+.preview.event :is(.slot, .who) {
+  color: var(--muted);
+  font-size: var(--step--2);
+}
+.preview.purchase ul {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+.preview.purchase li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 0.15rem 0;
+}
+.preview.purchase .price {
+  font-variant-numeric: tabular-nums;
+}
+.preview.purchase .total {
+  margin-top: 0.3rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--rule);
+  font-weight: 600;
+}
+.ask .answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--rule);
+}
+.answers button {
+  all: unset;
+  cursor: pointer;
+  padding: 0.6rem;
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--blue);
+  transition: background-color var(--quick);
+}
+.answers button + button {
+  border-left: 1px solid var(--rule);
+  color: var(--muted);
+}
+.answers button:first-child {
+  border-bottom-left-radius: 18px;
+}
+.answers button:last-child {
+  border-bottom-right-radius: 18px;
+}
+.answers button:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+.answers button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.ask.decided .answers {
+  display: none;
+}
+.ask small b {
+  font-weight: 600;
+  color: var(--fg);
+}
+.ask .outcome {
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--rule);
+  color: var(--fg);
+  font-size: var(--step--1);
+  font-weight: 500;
+}
+.ask .outcome:empty {
+  display: none;
+}
+.thread .empty {
+  margin: auto;
+  display: grid;
+  justify-items: center;
+  gap: var(--s3);
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+.thread .empty .cue-face {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+/* Working on: what the agent is doing, beside the thread. It takes a column once the window is
+   wide enough, and opens as a panel over the thread from the header's clock before that. */
+main.chat {
+  position: relative;
+}
+.work {
+  display: none;
+  overflow-y: auto;
+  padding: var(--s3) var(--s3) var(--s5);
+  background: var(--pane);
+}
+.work header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.5rem;
+  margin-bottom: var(--s2);
+}
+.work h2 {
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tasks > li + li {
+  border-top: 1px solid var(--rule);
+}
+.task {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(0, 1fr) auto;
+  column-gap: 0.7rem;
+  padding: 0.75rem 0.2rem;
+}
+.task > .dot {
+  margin-top: 0.4rem;
+}
+.dot.working {
+  animation: working 1.8s ease-in-out infinite;
+}
+@keyframes working {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 25%, transparent);
+  }
+}
+.task .title {
+  display: block;
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.task .progress {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 0.15rem;
+  font-size: var(--step--2);
+  line-height: 1.4;
+  color: var(--muted);
+}
+.task .progress:empty {
+  display: none;
+}
+.task .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  margin-top: 0.35rem;
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+.task .word {
+  font-weight: 600;
+  color: var(--fg);
+}
+.task.waiting_owner .word {
+  color: var(--amber);
+}
+.task.blocked .word {
+  color: var(--danger);
+}
+.task .next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.task .next svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.task.closed {
+  opacity: 0.6;
+}
+.task.closed .title {
+  font-weight: 500;
+}
+.task .cancel {
+  width: 1.75rem;
+  height: 1.75rem;
+  opacity: 0;
+  transition: opacity var(--quick);
+}
+.task .cancel svg {
+  width: 1rem;
+  height: 1rem;
+}
+.task:hover .cancel,
+.task .cancel:focus-visible {
+  opacity: 1;
+}
+.task .confirm-cancel {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.8rem;
+  margin-top: 0.5rem;
+  font-size: var(--step--2);
+}
+.task .confirm-cancel button {
+  all: unset;
+  cursor: pointer;
+  font-weight: 600;
+}
+.task .confirm-cancel .yes {
+  color: var(--danger);
+}
+.task .confirm-cancel button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+.task.asking .cancel {
+  visibility: hidden;
+}
+/* The header's clock: how many things are in hand, amber when one needs you. */
+.work-toggle {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  right: var(--s3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: var(--step--2);
+  transition: background-color var(--quick);
+}
+.work-toggle:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+.work-toggle:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+.work-toggle svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.work-toggle b:empty {
+  display: none;
+}
+main.chat.needs-you .work-toggle b {
+  color: var(--amber);
+}
+main.chat.work-open .work {
+  display: block;
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 2;
+  width: min(21rem, 88%);
+  border-left: 1px solid var(--rule);
+}
+@media (min-width: 1180px) {
+  main.chat.has-work {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+  }
+  main.chat.has-work .work {
+    display: block;
+    position: static;
+    width: auto;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    border-left: 1px solid var(--rule);
+  }
+  main.chat .work-toggle,
+  main.chat .work .close {
+    display: none;
+  }
+}
+
+/* A runner with no web thread: the agent's face and the number to text instead. */
+main.texts-only {
+  display: grid;
+  place-items: center;
+}
+main.texts-only .empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--s2);
+  text-align: center;
+}
+main.texts-only .cue-face {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: var(--s2);
+}
+/* The composer: the field with send inside it, as in Messages. Send appears only with text. */
+.compose {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s1);
+  max-width: none;
+  margin: 0;
+  padding: var(--s2) var(--thread) var(--s2);
+}
+.compose .field {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s2);
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  transition: border-color var(--quick);
+}
+.compose .field:focus-within {
+  border-color: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.compose textarea {
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0.4rem 0;
+  background: none;
+  line-height: 1.35;
+  field-sizing: content;
+  max-height: 10rem;
+}
+.compose textarea:focus-visible {
+  outline: none;
+}
+/* The failure line keeps its height, so a failed send never moves the composer. */
+.compose .note {
+  min-height: 1.2em;
+  padding-left: 1rem;
+  font-size: var(--step--2);
+}
+.send {
+  all: unset;
+  cursor: pointer;
+  overflow: hidden; /* the arrow launches out of the button, not past it */
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--blue);
+  color: #eeeeeb;
+  transition:
+    transform var(--quick),
+    opacity var(--quick);
+}
+.send svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 2.5;
+}
+.send:active {
+  transform: scale(0.9);
+}
+.send:disabled {
+  opacity: 0;
+  transform: scale(0.6);
+  cursor: default;
+}
+
+/* Forms: phone, code, display name, vault fields, a confirm checkbox. Nothing else. */
+form {
+  display: grid;
+  gap: var(--s3);
+  width: 100%;
+  max-width: 22rem;
+  margin: var(--s4) auto 0;
+}
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+input,
+textarea {
+  font: inherit;
+  font-size: var(--step-0);
+  color: var(--fg);
+  background: var(--bg-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 0.7rem 0.95rem;
+  box-sizing: border-box;
+  width: 100%;
+  transition:
+    opacity var(--quick),
+    border-color var(--quick);
+}
+input:hover,
+textarea:hover {
+  border-color: var(--rule);
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+textarea {
+  resize: vertical;
+}
+input:disabled {
+  opacity: 0.4;
+}
+input.code {
+  text-align: center;
+  font-size: var(--step-1);
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+}
+form .note {
+  text-align: center;
+}
+form > .link {
+  justify-self: center;
+}
+/* Pills: one width per size, whatever the label. */
+/* Buttons are rounded rectangles, never pills. */
+.pill {
+  all: unset;
+  cursor: pointer;
+  justify-self: center;
+  box-sizing: border-box;
+  min-width: 9rem;
+  padding: 0.8rem 1.6rem;
+  border-radius: 12px;
+  background: var(--fg);
+  color: var(--bg);
+  font: inherit;
+  font-size: var(--step-0);
+  font-weight: 500;
+  text-align: center;
+  transition:
+    transform var(--move),
+    opacity var(--quick),
+    background-color var(--quick);
+}
+.pill.sm {
+  min-width: 5.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  font-size: var(--step--1);
+}
+.pill.danger {
+  background: var(--danger);
+  color: #eeeeeb;
+}
+.pill:hover {
+  transform: translateY(-1px);
+}
+.pill:active {
+  transform: scale(0.97);
+}
+.pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+/* Text actions; `.danger` for Revoke, Delete account, and Reject. */
+.link {
+  all: unset;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--step--1);
+  color: var(--muted);
+  transition: color var(--quick);
+}
+.link:hover {
+  color: var(--fg);
+}
+.link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.link.danger {
+  color: var(--danger);
+}
+
+/* Sign in: one column, left-aligned. The mark, a big title, one line, one full-width button. */
+.gate {
+  display: grid;
+  justify-items: start;
+  gap: var(--s3);
+  width: min(100%, 26rem);
+  margin: 0 auto;
+  padding-top: var(--s6);
+}
+.gate > svg {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: var(--s3);
+}
+.gate h1 {
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.gate .muted {
+  font-size: var(--step-0);
+  margin-top: calc(-1 * var(--s2));
+}
+.gate form.google {
+  max-width: none;
+  margin: var(--s2) 0 0;
+}
+.gate .note {
+  text-align: left;
+}
+.gate .note:empty {
+  display: none;
+}
+/* The one door in: a full-width surface button rather than a filled one. Google's mark is four
+   colours and reads as a smudge on a dark fill, and the terms ask that it not be recoloured. */
+button.google {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.6rem;
+  padding: 0.9rem 1.4rem;
+  border-radius: 12px;
+  border: 1px solid var(--rule);
+  background: var(--bg-2);
+  font: inherit;
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--fg);
+  transition:
+    transform var(--move),
+    border-color var(--quick),
+    opacity var(--quick);
+}
+button.google:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--fg) 28%, transparent);
+}
+button.google:active {
+  transform: scale(0.98);
+}
+button.google:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+button.google:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
+}
+button.google .g {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  stroke: none; /* a brand mark, filled; the icon stroke would outline it */
+}
+
+/* Welcome: the two things the agent needs, in the column the gate above it sits in. */
+.welcome {
+  display: grid;
+  gap: var(--s3);
+  max-width: 22rem;
+  margin: var(--s4) auto 0;
+}
+.welcome .bad {
+  min-height: 1.2em;
+  font-size: var(--step--1);
+  color: var(--danger);
+}
+
+/* The add dialog: title and close, one line, the fields, Cancel and Save. Every field is the
+   same control at the same size; a lock marks the ones the agent will never read back. */
+.modal {
+  width: min(100% - 2rem, 28rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--ink) 35%, transparent);
+}
+.modal[open] {
+  animation: pop var(--move) both;
+}
+.modal::backdrop {
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  animation: fade var(--move) both;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.modal form {
+  display: grid;
+  gap: var(--s3);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--s4) var(--s4) 0;
+  box-sizing: border-box;
+}
+.modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.modal header h2 {
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.modal header .icon {
+  margin: -0.5rem -0.5rem -0.5rem 0;
+}
+.modal .desc {
+  font-size: var(--step--1);
+  color: var(--muted);
+  margin-top: -0.6rem;
+}
+.modal .fields {
+  display: grid;
+  gap: var(--s3);
+}
+.modal .fields,
+.modal label,
+.modal form > * {
+  min-width: 0;
+}
+.modal label span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.modal label span svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+/* Small print: the SMS notice, "didn't get it?", terms under sign-in. Links take the text color. */
+.fine {
+  font-size: var(--step--1);
+  line-height: 1.45;
+  color: var(--muted);
+}
+.fine a,
+.fine .link {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.modal textarea {
+  resize: none;
+}
+.modal .note {
+  min-height: 0;
+  text-align: left;
+}
+.modal .note:empty {
+  display: none;
+}
+.modal .verify form {
+  padding: 0;
+}
+/* Step-up: the code prompt takes the dialog over until it clears, then the add form is back. */
+.modal .verify:not(:empty) {
+  padding: var(--s4);
+}
+.modal:has(.verify:not(:empty)) > form {
+  display: none;
+}
+.modal footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin: var(--s2) calc(-1 * var(--s4)) 0;
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--rule);
+  background: var(--bg-2);
+}
+.modal footer .pill {
+  justify-self: auto;
+}
+.pill.ghost {
+  background: none;
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+.check {
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  font-size: var(--step--1);
+  color: var(--fg);
+  line-height: 1.5;
+  text-align: left;
+}
+.check input {
+  width: auto;
+  margin: 0.25rem 0 0;
+  accent-color: var(--fg);
+}
+.receipt {
+  margin: var(--s4) 0;
+  font: inherit;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+/* The one data switch. The row is its label, so the whole row toggles it, and its one line of
+   small print wraps rather than trailing off. */
+.row:has(.switch) {
+  cursor: pointer;
+}
+.row:has(.switch) .t small {
+  white-space: normal;
+}
+.switch {
+  appearance: none;
+  flex: none;
+  width: 2.6rem;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 22%, transparent);
+  position: relative;
+  cursor: pointer;
+  transition: background-color var(--quick);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(1.5rem - 6px);
+  height: calc(1.5rem - 6px);
+  border-radius: 999px;
+  background: var(--bg);
+  transition: transform var(--move);
+}
+.switch:checked {
+  background: var(--fg);
+}
+.switch:checked::after {
+  transform: translateX(1.1rem);
+}
+.switch:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+/* The delete confirmation unfolds inside its card; nothing around it moves until it does. */
+.confirm {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--move);
+}
+.confirm.open {
+  grid-template-rows: 1fr;
+}
+.confirm > .confirm-content {
+  overflow: hidden;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0 0.85rem;
+  transition: padding var(--move);
+}
+.confirm.open > .confirm-content {
+  padding: var(--s2) 0.85rem var(--s3);
+  border-top: 1px solid var(--rule);
+}
+.confirm-content > form,
+.confirm-content > .verify form {
+  margin: 0;
+  max-width: none;
+}
+.confirm-content:has(.verify:not(:empty)) > form.delete {
+  display: none;
+}
+.confirm .pill {
+  justify-self: start;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  main > * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Dime. The wordmark is type, not a drawing: the brand face at its heaviest step. */
+.wordmark {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-decoration: none;
+}
+/* Two conversations sit together at the top of the sidebar; the gap opens after the last. */
+.side nav a.convo:has(+ a.convo) {
+  margin-bottom: 0;
+}
+
+/* People are faces in type: initials on a tint of their tone (people.ts). */
+.av {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 22%, var(--pane));
+  color: color-mix(in srgb, var(--tone) 80%, var(--fg));
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  flex: none;
+}
+/* A cluster of faces stands in for a group: overlapping, each ringed in the surface it sits on. */
+.faces {
+  display: inline-flex;
+}
+.faces .av {
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.faces .av + .av {
+  margin-left: -0.6rem;
+}
+.side nav a.convo .faces {
+  width: 2.25rem;
+  justify-content: center;
+}
+.side nav a.convo .faces .av {
+  width: 1.3rem;
+  height: 1.3rem;
+  font-size: 0.55rem;
+}
+.side nav a.convo .faces .av + .av {
+  margin-left: -0.55rem;
+}
+.contact .faces {
+  height: 2.4rem;
+  align-items: center;
+}
+.contact .faces .av {
+  width: 2rem;
+  height: 2rem;
+  box-shadow: 0 0 0 2px var(--pane);
+}
+
+/* The group thread: a friend's run opens with their name and closes on their face, in a gutter
+   at the left so every bubble keeps one edge. */
+.thread.group .b.out {
+  margin-left: 2.4rem;
+}
+.thread .who {
+  margin: 0.6rem 0 -0.4rem 3.25rem;
+  color: var(--muted);
+  font-size: var(--step--2);
+  font-weight: 500;
+}
+.b .av.gutter {
+  position: absolute;
+  left: -2.4rem;
+  bottom: 0;
+}
+.b svg.av.gutter {
+  background: none;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+/* A mini app card: Dime's side of the thread, no tail, its own layout inside (apps/<kind>.ts). */
+.b.app {
+  width: min(80%, 22rem);
+  padding: 0;
+  white-space: normal;
+  overflow: hidden;
+}
+.b.app::before,
+.b.app::after {
+  display: none;
+}
+.b.app .stub {
+  display: grid;
+  gap: var(--s1);
+  padding: 0.75rem 0.85rem;
+}
+.b.app .stub pre {
+  margin: 0;
+  font-size: var(--step--2);
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+/* The demo control panel: the whole window, rows of plain controls. */
+main.demo section {
+  display: grid;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+}
+main.demo h2 {
+  margin: 0;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+}
+main.demo .actions,
+main.demo .presets,
+main.demo .swipe {
+  display: flex;
+  max-width: none;
+  margin: 0;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+main.demo .pill {
+  min-width: 0;
+  padding: 0.55rem 1rem;
+  font-size: var(--step--1);
+  justify-self: start;
+}
+main.demo .swipe input {
+  width: 9rem;
+}
+main.demo .readout {
+  display: grid;
+  justify-items: end;
+  gap: var(--s1);
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.demo .readout b {
+  font-size: var(--step-1);
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}

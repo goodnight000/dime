@@ -1,0 +1,18 @@
+{
+  "name": "dime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trap 'kill 0' INT TERM EXIT; bun --watch server/index.ts & vite web",
+    "test": "bun test server",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "charade-icons": "file:./vendor/charade-icons"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "5.9.3",
+    "vite": "8.2.2"
+  }
+}

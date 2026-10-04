@@ -1,0 +1,260 @@
+/* Accounts: services on the left, where the agent reaches you on the right. On a phone they stack,
+   services first. Every rule is scoped to main.accounts. */
+main.accounts .split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+main.accounts .split h2 {
+  font-size: var(--step-0);
+  font-weight: 600;
+  margin: 0 0 var(--s2) var(--s1);
+}
+main.accounts .rows {
+  margin: 0;
+}
+main.accounts .list > .note {
+  padding-left: var(--s1);
+}
+main.accounts .row .t small:has(.dot) {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* A service: its mark, its name over what a connection reaches, and at its right edge the
+   state: Connect (filled) while nothing is connected, then Add account (quiet) or the word
+   Connected, and a muted line when this server can't start it. */
+main.accounts .svc {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  min-height: 4.25rem;
+  padding: 0.7rem 0.7rem 0.7rem 1rem;
+}
+main.accounts .svc > .brand {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+}
+main.accounts .svc.later .t b {
+  color: var(--muted);
+}
+main.accounts .svc.later > .brand {
+  opacity: 0.45;
+}
+main.accounts .word {
+  font-size: var(--step--1);
+  color: var(--muted);
+  white-space: nowrap;
+  padding-right: 0.3rem;
+}
+main.accounts .act {
+  display: flex;
+}
+main.accounts .act .pill {
+  justify-self: auto;
+  min-width: 7.5rem;
+}
+
+/* Its accounts, one row each under it, set in to the service's name: who, and the way out. The
+   rule above each starts at the name too, so they read as the service's own. */
+main.accounts .accts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+main.accounts .acct {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 3rem;
+  margin-left: calc(1rem + 2rem + var(--s3));
+  padding-right: 0.7rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--step--1);
+}
+main.accounts .who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Channels. The agent's face at the size of a brand mark; a bare glyph where there is none. */
+main.accounts .channels .row {
+  min-height: 4.25rem;
+  padding: 0.7rem 0.7rem 0.7rem 1rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+main.accounts .cue-face {
+  width: 2rem;
+  height: 2rem;
+}
+main.accounts .mark {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+main.accounts .tools {
+  display: flex;
+}
+main.accounts .num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Adding a phone: the number, then the code, in one cell sized to the taller of the two so the
+   swap between them moves nothing. */
+main.accounts .add-phone {
+  row-gap: var(--s3);
+  padding-bottom: 0.2rem;
+}
+main.accounts .steps,
+main.accounts .add-phone > .note {
+  grid-column: 1 / -1;
+}
+main.accounts .steps {
+  display: grid;
+}
+main.accounts .step {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--quick),
+    visibility var(--quick);
+}
+main.accounts .step.off {
+  opacity: 0;
+  visibility: hidden;
+}
+main.accounts .steps form {
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+  max-width: none;
+  margin: 0;
+}
+main.accounts .steps .line {
+  display: flex;
+  gap: var(--s2);
+}
+main.accounts .steps input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  font-size: var(--step--1);
+}
+main.accounts .steps input.code {
+  font-size: var(--step-0);
+  letter-spacing: 0.3em;
+  text-align: left;
+}
+main.accounts .steps .pill {
+  min-width: 0;
+  flex: none;
+}
+main.accounts .steps .fine {
+  font-size: var(--step--2);
+}
+main.accounts .steps .fine .link {
+  font-size: inherit;
+}
+main.accounts .add-phone > .note {
+  min-height: 1.4em;
+  margin-top: calc(-1 * var(--s2));
+}
+
+/* The disconnect sheet: what goes and what stays, side by side, then the receipt in its place. */
+main.accounts .modal header .who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+main.accounts .modal header .who > span {
+  display: grid;
+  min-width: 0;
+}
+main.accounts .modal header small {
+  font-size: var(--step--1);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+main.accounts .modal header small:empty {
+  display: none;
+}
+main.accounts .modal .who .brand {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+}
+main.accounts .fate {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+main.accounts .fate > div + div {
+  border-left: 1px solid var(--rule);
+  padding-left: var(--s3);
+}
+main.accounts .fate h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 var(--s2);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+main.accounts .fate h3 svg {
+  width: 1rem;
+  height: 1rem;
+}
+main.accounts .fate ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  font-size: var(--step--1);
+}
+main.accounts .goes li {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--danger);
+}
+main.accounts .receipt-sheet header time {
+  flex: none;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.accounts .receipt-sheet dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0;
+  border-top: 1px solid var(--rule);
+  font-size: var(--step--1);
+}
+main.accounts .receipt-sheet :is(dt, dd) {
+  margin: 0;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+main.accounts .receipt-sheet dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+main.accounts .receipt-sheet .fine {
+  display: grid;
+  gap: var(--s1);
+}
+main.accounts .receipt-sheet .fine p {
+  font-size: var(--step--2);
+}
+
+@media (max-width: 759px) {
+  main.accounts .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  main.accounts .svc .t small {
+    white-space: normal;
+  }
+}

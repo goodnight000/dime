@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Dime</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script>
+      // The stored appearance, before first paint, so a dark choice never flashes light.
+      try {
+        const t = localStorage.getItem("theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- `cue` is Dime's face: a coin, one round stroke, with two eyes. `mark` is the bare coin.
+         Every other icon is Charade, inlined by src/icons.ts; `data-icon` names the ones here. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="cue" viewBox="0 0 100 100">
+        <g fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round">
+          <circle cx="50" cy="50" r="38" />
+          <path d="M39 42v10M61 42v10" />
+        </g>
+      </symbol>
+      <symbol id="mark" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="12" />
+      </symbol>
+    </svg>
+
+    <!-- The shell is the Messages window: a sidebar holding the two conversations and the places
+         around them, and the pane doing the work. On a phone the sidebar folds into a tab bar. -->
+    <aside class="side">
+      <a class="wordmark" href="/" aria-label="Dime">Dime</a>
+      <nav aria-label="Sections">
+        <a href="/" class="convo"
+          ><svg class="cue"><use href="#cue" /></svg><span class="agent-name">Dime</span></a
+        >
+        <a href="/group" class="convo"
+          ><span class="faces" aria-hidden="true"></span><span>The Group</span></a
+        >
+        <a href="/dashboard"><svg data-icon="chart"></svg><span>Dashboard</span></a>
+        <a href="/accounts"><svg data-icon="bank"></svg><span>Accounts</span></a>
+      </nav>
+    </aside>
+    <main></main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
