@@ -13,7 +13,7 @@ The build contract for the hackathon (ends 4:30pm 2026-10-04). `CONCEPT.md` is t
 - **CFO also drops finance news/facts** (Exa search when the key arrives; a curated list until then).
 - **Investing is a fake ledger.** Funds: S&P 500 (VOO), Nasdaq-100 (QQQ), Semiconductors (SOXX), Memory (DRAM, Roundhill, launched Apr 2026), Cash (high-yield savings). Each has a short description, a risk level, a "good for" line.
 - **Cut:** phone call, group votes on impulse buys, season pool, Plaid, full onboarding (the demo starts onboarded), deploy.
-- **Agent:** Pi (`@mariozechner/pi-agent-core` / `pi-ai`). **Model + DB:** Neon (AI Gateway for the model, Postgres for data) once Charles sends credentials. Until then: in-memory store and template replies, so nothing blocks on credentials.
+- **Agent:** Pi (`@earendil-works/pi-agent-core` / `@earendil-works/pi-ai` 1.0.x; the `@mariozechner/*` packages are deprecated; see `research/stack-notes.md`), model `claude-sonnet-5` via the Neon gateway OpenAI endpoint. **Model + DB:** Neon (AI Gateway for the model, Postgres for data) once Charles sends credentials. Until then: in-memory store and template replies, so nothing blocks on credentials.
 - **UI is a judged track.** Buttery, premium, every micro-detail and motion considered. See `docs/DESIGN.md`.
 
 ## Stack
