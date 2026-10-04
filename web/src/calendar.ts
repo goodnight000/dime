@@ -1,6 +1,7 @@
-// The dashboard's calendar: a real month with a spend heat map (All / Variable / Fixed), quiet
-// markers for bills and everything else that happened, and a day detail beside it. Data from
-// GET /api/calendar?month=YYYY-MM (server/calendar.ts). The detail lives in a swap slot sized to the
+// The dashboard calendar: a real month whose heat map diverges around each day's budget (green the
+// more was left, red the further over), small marks for bills, paydays and events at the foot of each
+// cell, and one column beside it: the last 7 days' money in and out, or the day you picked. Data from
+// GET /api/calendar?month=YYYY-MM (server/calendar.ts). The column is a swap slot sized to the
 // calendar, so opening a day crossfades in place and nothing reflows.
 import { usd, flow } from "./num.ts";
 import { brand } from "./brands.ts";
@@ -8,18 +9,17 @@ import { icon } from "./icons.ts";
 import { swap } from "./motion.ts";
 import "./calendar.css";
 
-type Mode = "all" | "variable" | "fixed";
-type Spend = Record<Mode, number>;
 type Bill = { merchant: string; amount: number; at: string; status: "paid" | "due" };
 type Ev = { kind: string; label: string; amount: number | null; at: string; merchant?: string };
 type Tx = { id: string; at: string; merchant: string; amount: number; category: string; kind: string; covered: boolean; cost: "fixed" | "variable" | null };
 type Day = {
-  date: string; day: number; today: boolean; future: boolean; spend: Spend; budget: number | null; over: number;
-  outcome: "under" | "over" | "none" | "future"; txns: Tx[]; bills: Bill[]; events: Ev[]; line: string;
+  date: string; day: number; today: boolean; future: boolean; budget: number | null; over: number; net: number | null; heat: number;
+  outcome: "under" | "over" | "none" | "future"; txns: Tx[]; bills: Bill[]; events: Ev[];
 };
 type Cal = {
-  month: string; label: string; today: string; range: { first: string; last: string }; scale: Record<Mode, number[]>;
-  totals: Spend & { over_days: number; under_days: number; due: Bill[] }; days: Day[];
+  month: string; label: string; today: string; range: { first: string; last: string };
+  totals: { due: Bill[] }; days: Day[];
+  recent: { from: string; in: number; out: number; txns: (Tx & { date: string })[] };
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -31,11 +31,11 @@ const ymOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStar
 const ymdOf = (d: Date) => `${ymOf(d)}-${String(d.getDate()).padStart(2, "0")}`;
 const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 const long = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
+const wkday = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
 const clock = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 const money = (n: number) => usd(n, !Number.isInteger(Math.round(n * 100) / 100));
-// The toggle's words: "variable" and "fixed" are the data's terms; people say everyday and bills.
-const MODE_WORD: Record<Mode, string> = { all: "spent", variable: "spent day to day", fixed: "in bills" };
-const MODE_HEAD: Record<Mode, string> = { all: "Spent", variable: "Everyday spending", fixed: "Bills" };
+const whole = (n: number) => usd(Math.abs(Math.round(n)));
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 /** Event glyphs: Charade icons on the neutral tile, the same footprint as a brand tile. */
 const GLYPH: Record<string, string> = {
@@ -43,7 +43,20 @@ const GLYPH: Record<string, string> = {
   refund: "undo", duplicate: "copy", invest: "trending-up", goal: "gem",
 };
 const glyph = (e: Ev) => (e.kind === "payday" ? brand(e.merchant ?? "Payroll") : `<span class="brand plain" aria-hidden="true">${icon(GLYPH[e.kind] ?? "star")}</span>`);
-const level = (v: number, cuts: number[]) => (v <= 0 ? 0 : 1 + cuts.filter((c) => v > c).length);
+/** What a cell shows, most telling first. Sweeps happen most nights, so they stay in the detail. */
+function marks(d: Day): string[] {
+  const loud = d.events.filter((e) => !["sweep", "payday", "invest"].includes(e.kind));
+  return [
+    ...loud.filter((e) => e.kind === "cfo" || e.kind === "duplicate").map(glyph),
+    ...d.bills.map((b) => brand(b.merchant)),
+    ...d.events.filter((e) => e.kind === "payday").map(glyph),
+    ...loud.filter((e) => e.kind !== "cfo" && e.kind !== "duplicate").map(glyph),
+  ];
+}
+/** A heat step as a class: hn3..hn1 over, h0 on budget or no data, hp1..hp3 under. */
+const heatCls = (h: number) => (h > 0 ? `hp${h}` : h < 0 ? `hn${-h}` : "h0");
+/** A day before the history began: the server leaves it neutral with nothing in it. */
+const noData = (d: Day) => !d.future && !d.today && d.heat === 0 && !d.txns.length && Math.abs(d.net ?? 0) >= 1;
 
 export function mountCalendar(sec: HTMLElement) {
   sec.innerHTML = `
@@ -53,20 +66,13 @@ export function mountCalendar(sec: HTMLElement) {
         <button class="ib" data-step="-1" aria-label="Previous month">${icon("chevron", "back")}</button>
         <button class="ib" data-step="1" aria-label="Next month">${icon("chevron")}</button>
       </div>
-      <div class="seg" role="radiogroup" aria-label="Spend shown" style="--n:3;--i:0">
-        <i class="thumb" aria-hidden="true"></i>
-        <button role="radio" aria-checked="true" data-mode="all">All</button>
-        <button role="radio" aria-checked="false" data-mode="variable">Everyday</button>
-        <button role="radio" aria-checked="false" data-mode="fixed">Bills</button>
-      </div>
     </header>
     <div class="cal-body">
       <div class="cal-main">
         <div class="wk" aria-hidden="true">${["S", "M", "T", "W", "T", "F", "S"].map((d) => `<span>${d}</span>`).join("")}</div>
         <div class="cal" aria-labelledby="days-h">${"<button class='c blank' tabindex='-1' disabled></button>".repeat(42)}</div>
-        <div class="legend">
-          <span class="ramp"><span>Less</span>${[0, 1, 2, 3, 4, 5].map((l) => `<i class="lv${l}"></i>`).join("")}<span>More</span></span>
-          <span class="key-over"><i class="od"></i>Over budget</span>
+        <div class="legend" aria-label="Color shows each day against its budget: red over, green under">
+          <span>Over</span>${["hn3", "hn2", "hn1", "h0", "hp1", "hp2", "hp3"].map((l) => `<i class="${l}"></i>`).join("")}<span>Under</span>
         </div>
       </div>
       <div class="dd slot" aria-live="polite">
@@ -80,12 +86,10 @@ export function mountCalendar(sec: HTMLElement) {
   const grid = $(".cal");
   const cells = [...grid.children] as HTMLButtonElement[];
   const slot = $(".dd");
-  const seg = $(".seg");
-  let mode: Mode = "all";
   let month: string | null = null; // null until the first load: then the server's current month
   let data: Cal | null = null;
   let raw = "";
-  let open: string | null = null; // the day in the detail, or null for the month
+  let open: string | null = null; // the day in the detail, or null for recent activity
   let focusDate: string | null = null;
 
   // Raw text, so an unchanged 2s poll skips the redraw.
@@ -106,10 +110,11 @@ export function mountCalendar(sec: HTMLElement) {
     prev.disabled = c.month <= c.range.first;
     next.disabled = c.month >= c.range.last;
     const lead = local(c.month).getDay();
-    const cuts = c.scale[mode];
     if (open && !c.days.some((d) => d.date === open)) open = null;
     if (!focusDate || !c.days.some((d) => d.date === focusDate)) focusDate = (c.days.find((d) => d.today) ?? c.days[0]).date;
+    const rows = Math.ceil((lead + c.days.length) / 7); // 5 or 6 weeks: no empty trailing week
     cells.forEach((cell, i) => {
+      cell.hidden = i >= rows * 7;
       const d = c.days[i - lead];
       if (!d) {
         // The neighbouring months' dates, quiet: the grid always reads as a real calendar.
@@ -122,57 +127,58 @@ export function mountCalendar(sec: HTMLElement) {
         delete cell.dataset.date;
         return;
       }
-      const v = d.spend[mode];
-      const lv = d.future ? 0 : level(v, cuts);
-      const over = d.outcome === "over" && mode !== "fixed";
       cell.disabled = false;
       cell.dataset.date = d.date;
       cell.tabIndex = d.date === focusDate ? 0 : -1;
-      cell.className = `c lv${lv}${d.future ? " future" : ""}${d.today ? " now" : ""}${d.date === open ? " sel" : ""}`;
-      // The heat is the story: no logos in the grid. Bills and events live in the day panel.
-      cell.innerHTML = `<span class="dn">${d.day}</span>${over ? '<i class="od"></i>' : ""}`;
+      cell.className = `c ${heatCls(d.heat)}${d.future ? " future" : ""}${d.today ? " now" : ""}${d.date === open ? " sel" : ""}`;
+      const m = marks(d);
+      cell.innerHTML = `<span class="dn">${d.day}</span><span class="marks">${m.slice(0, 2).join("")}${m.length > 2 ? `<small>+${m.length - 2}</small>` : ""}</span>`;
       const bits = [long.format(local(d.date)) + (d.today ? ", today" : "")];
-      if (!d.future) bits.push(v > 0 ? `${money(v)} ${MODE_WORD[mode]}` : `nothing ${mode === "all" ? "spent" : MODE_WORD[mode]}`);
-      if (over) bits.push(`${usd(d.over)} over`);
+      if (d.today && d.net !== null) bits.push(d.net < 0 ? `${whole(d.net)} over so far` : `${whole(d.net)} left`);
+      else if (!d.future && d.net !== null && !noData(d)) bits.push(Math.abs(d.net) < 1 ? "on budget" : `${whole(d.net)} ${d.net < 0 ? "over" : "under"} budget`);
       if (d.bills.length) bits.push(`${d.bills.length} bill${d.bills.length > 1 ? "s" : ""}${d.future ? " due" : ""}: ${d.bills.map((b) => b.merchant).join(", ")}`);
       const ev = d.events.filter((e) => e.kind !== "sweep");
       if (ev.length) bits.push(ev.map((e) => e.label).join(", "));
       cell.setAttribute("aria-label", bits.join(". "));
       cell.setAttribute("aria-pressed", String(d.date === open));
     });
-    $(".key-over").classList.toggle("off", mode === "fixed");
-    drawMonth(c);
+    drawRecent(c);
     if (open) drawDay(c.days.find((d) => d.date === open)!, false);
   }
 
-  function drawMonth(c: Cal) {
-    const t = c.totals;
-    const cur = c.days.some((d) => d.today);
-    const ahead = c.days.every((d) => d.future);
-    const dueSum = t.due.reduce((n, b) => n + b.amount, 0);
-    const due = t.due.slice(0, 5);
-    const rows = due.map((b) => `<li>${brand(b.merchant)}<span class="tt"><b>${esc(b.merchant)}</b><small>${short.format(new Date(b.at))}</small></span><span class="v">${money(b.amount)}</span></li>`).join("");
-    $(".mo").innerHTML = ahead
-      ? `<p class="ey">${esc(c.label.split(" ")[0])} ahead</p>
-        <p class="big">${usd(dueSum)}</p>
-        <p class="meta">${t.due.length} bill${t.due.length === 1 ? "" : "s"} scheduled, all fixed</p>
-        <h3>First up</h3><ul class="lst">${rows}</ul>`
-      : `<p class="ey">${MODE_HEAD[mode]} in ${esc(c.label.split(" ")[0])}${cur ? " so far" : ""}</p>
-        <p class="big">${usd(t[mode])}</p>
-        ${cur && due.length ? `<h3>Coming up</h3><ul class="lst">${rows}</ul>` : biggest(c)}`;
-  }
+  const row = (tile: string, name: string, meta: string, amount: string) =>
+    `<li>${tile}<span class="tt"><b>${esc(name)}</b><small>${meta}</small></span><span class="v">${amount}</span></li>`;
+  // Colour carries the direction (num.ts flow): out in --neg without a minus, in in --pos with "+".
+  const amt = (f: { text: string; cls: string; label: string }) => `<span class="${f.cls}" aria-label="${f.label}">${f.text}</span>`;
+  const tx = (t: Tx) => amt(flow(t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount, t.covered ? "transfer" : t.kind, !Number.isInteger(t.amount)));
 
-  /** A finished month: its heaviest days in the current mode, each one a way into that day. */
-  function biggest(c: Cal) {
-    const top = c.days.filter((d) => !d.future && d.spend[mode] > 0).sort((a, b) => b.spend[mode] - a.spend[mode]).slice(0, 5);
-    if (!top.length) return `<h3>Biggest days</h3><p class="empty">Nothing ${MODE_WORD[mode]} this month.</p>`;
-    const lead = (d: Day) => d.txns.filter((t) => (mode === "all" ? t.cost : t.cost === mode)).sort((a, b) => b.amount - a.amount)[0];
-    return `<h3>Biggest days${mode === "all" ? "" : `, ${mode === "fixed" ? "bills" : "everyday"}`}</h3><ul class="lst">${top
-      .map((d) => {
-        const t = lead(d);
-        return `<li><button class="go" data-go="${d.date}">${t ? brand(t.merchant) : "<span></span>"}<span class="tt"><b>${long.format(local(d.date))}</b><small>${t ? `Mostly ${esc(t.merchant)}` : ""}</small></span><span class="v">${money(d.spend[mode])}</span></button></li>`;
-      })
-      .join("")}</ul>`;
+  /** No day picked: the last 7 days, money in against money out, then the transactions by day. */
+  function drawRecent(c: Cal) {
+    const r = c.recent;
+    const y = local(c.today);
+    const yest = ymdOf(new Date(y.getFullYear(), y.getMonth(), y.getDate() - 1));
+    const dayWord = (d: string) => (d === c.today ? "Today" : d === yest ? "Yesterday" : wkday.format(local(d)));
+    const groups = new Map<string, typeof r.txns>();
+    for (const t of r.txns) groups.set(t.date, [...(groups.get(t.date) ?? []), t]);
+    const total = r.in + r.out || 1;
+    $(".mo").innerHTML = `
+      <p class="ey">Last 7 days</p>
+      <div class="io">
+        <p><small>In</small><span class="io-n pos">+${whole(r.in)}</span></p>
+        <p><small>Out</small><span class="io-n neg">${whole(r.out)}</span></p>
+      </div>
+      <div class="split" aria-hidden="true"><i class="s-in" style="flex-grow:${r.in / total}"></i><i class="s-out" style="flex-grow:${r.out / total}"></i></div>
+      <div class="scroll">
+        ${
+          r.txns.length
+            ? [...groups]
+                .map(([d, ts]) => `<h3><button class="go-day" data-go="${d}">${dayWord(d)}</button></h3><ul class="lst">${ts
+                  .map((t) => row(brand(t.merchant), t.merchant, `${esc(cap(t.category))}${t.covered ? " · Won at blackjack" : ""}`, tx(t)))
+                  .join("")}</ul>`)
+                .join("")
+            : `<p class="empty">Nothing in or out this week.</p>`
+        }
+      </div>`;
   }
 
   /** Renders `d` into the hidden day pane and swaps to it (one crossfade), or redraws in place. */
@@ -180,46 +186,33 @@ export function mountCalendar(sec: HTMLElement) {
     const panes = [...slot.querySelectorAll<HTMLElement>(".dy")];
     const shown = panes.find((p) => p.classList.contains("on"));
     const target = show || !shown ? panes.find((p) => p !== shown)! : shown;
-    const spent = d.spend.all;
-    const verdict = d.future
-      ? ""
-      : d.outcome === "over"
-        ? `<span class="tag over">${usd(d.over)} over</span>`
+    const bills = d.bills.filter((b) => b.status === "due");
+    const net = d.net ?? 0;
+    // One statement for the day: over or under its budget (today: what's left), colour as meaning.
+    const [lead, cls, sub] = d.future
+      ? [bills.length ? money(bills.reduce((t, b) => t + b.amount, 0)) : "Nothing scheduled", "", bills.length ? `${bills.length === 1 ? "bill" : "bills"} due, already set aside` : ""]
+      : noData(d)
+        ? ["No data", "", "before your history starts"]
         : d.today
-          ? `<span class="tag">Today</span>`
-          : d.outcome === "none"
-            ? `<span class="tag">No spend</span>`
-            : `<span class="tag under">Under</span>`;
-    const txns = d.txns;
-    const row = (tile: string, name: string, meta: string, amount: string, cls = "") =>
-      `<li${cls ? ` class="${cls}"` : ""}>${tile}<span class="tt"><b>${esc(name)}</b><small>${meta}</small></span><span class="v">${amount}</span></li>`;
-    // Colour carries the direction (num.ts flow): out in --neg without a minus, in in --pos with "+".
-    const amt = (f: { text: string; cls: string; label: string }) => `<span class="${f.cls}" aria-label="${f.label}">${f.text}</span>`;
-    const tx = (t: Tx) => amt(flow(t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount, t.kind, !Number.isInteger(t.amount)));
+          ? net < 0 ? [`${whole(net)} over`, "neg", `of today's ${whole(d.budget ?? 0)} budget`] : [`${whole(net)} left`, "", `of today's ${whole(d.budget ?? 0)} budget`]
+          : Math.abs(net) < 1
+            ? ["On budget", "", `${whole(d.budget ?? 0)} budget`]
+            : [`${whole(net)} ${net < 0 ? "over" : "under"}`, net < 0 ? "neg" : "pos", `of ${whole(d.budget ?? 0)} budget`];
     const IN = ["payday", "refund", "blackjack-win"]; // money arriving; sweeps and investing move it between his own pots
     const ev = (e: Ev) => (e.amount === null ? "" : IN.includes(e.kind) ? amt(flow(Math.abs(e.amount))) : money(Math.abs(e.amount)));
-    const bills = d.bills.filter((b) => b.status === "due");
     const events = d.events;
     target.innerHTML = `
       <div class="dh">
-        <p class="ey">${long.format(local(d.date))}</p>
+        <p class="ey">${long.format(local(d.date))}${d.today ? ", today" : ""}</p>
         <button class="ib x" aria-label="Close day">${icon("x")}</button>
       </div>
-      <div class="fig">
-        <p class="big">${d.future ? (bills.length ? money(bills.reduce((t, b) => t + b.amount, 0)) : "—") : usd(spent)}</p>
-        ${verdict}
-      </div>
-      <p class="meta">${
-        d.future
-          ? bills.length ? "scheduled" : "nothing scheduled"
-          : `${usd(d.spend.variable)} everyday · ${usd(d.spend.fixed)} bills`
-      }</p>
-      <p class="line">${icon("cue", "cue")}<span>${esc(d.line)}</span></p>
+      <p class="big ${cls}">${lead}</p>
+      <p class="meta">${sub}</p>
       <div class="scroll">
-        ${txns.length ? `<h3>Transactions</h3><ul class="lst">${txns.map((t) => row(brand(t.merchant), t.merchant, `${clock.format(new Date(t.at))} · ${esc(t.category[0].toUpperCase() + t.category.slice(1))}${t.covered ? " · Won at blackjack" : ""}`, tx(t))).join("")}</ul>` : ""}
-        ${bills.length ? `<h3>Due</h3><ul class="lst">${bills.map((b) => row(brand(b.merchant), b.merchant, "Scheduled · Fixed", money(b.amount))).join("")}</ul>` : ""}
+        ${d.txns.length ? `<h3>Transactions</h3><ul class="lst">${d.txns.map((t) => row(brand(t.merchant), t.merchant, `${clock.format(new Date(t.at))} · ${esc(cap(t.category))}${t.covered ? " · Won at blackjack" : ""}`, tx(t))).join("")}</ul>` : ""}
+        ${bills.length ? `<h3>Bills due</h3><ul class="lst">${bills.map((b) => row(brand(b.merchant), b.merchant, "Scheduled", money(b.amount))).join("")}</ul>` : ""}
         ${events.length ? `<h3>Also</h3><ul class="lst">${events.map((e) => row(glyph(e), e.label, clock.format(new Date(e.at)), ev(e))).join("")}</ul>` : ""}
-        ${!txns.length && !bills.length && !events.length ? `<p class="empty">${d.future ? "Nothing on this day yet." : d.today ? "Nothing yet today." : "Nothing happened this day."}</p>` : ""}
+        ${!d.txns.length && !bills.length && !events.length ? `<p class="empty">${d.future ? "Nothing on this day yet." : d.today ? "Nothing yet today." : "Nothing happened this day."}</p>` : ""}
         ${d.today && data?.totals.due.length ? `<h3>Next up</h3><ul class="lst">${data.totals.due.slice(0, 3).map((b) => row(brand(b.merchant), b.merchant, short.format(new Date(b.at)), money(b.amount))).join("")}</ul>` : ""}
       </div>`;
     if (show) swap(slot, target);
@@ -281,34 +274,23 @@ export function mountCalendar(sec: HTMLElement) {
     select(null);
     cells.find((c) => c.dataset.date === date)?.focus();
   });
-  slot.addEventListener("click", (e) => {
-    const go = (e.target as Element).closest<HTMLElement>("[data-go]");
-    if (go) return select(go.dataset.go!);
+  slot.addEventListener("click", async (e) => {
+    const to = (e.target as Element).closest<HTMLElement>("[data-go]")?.dataset.go;
+    if (to && data) {
+      // A day in the recent list may sit in the month before the one open.
+      if (!data.days.some((d) => d.date === to)) {
+        const a = local(data.month);
+        const b = local(to);
+        await go((b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth(), () => to);
+      }
+      return select(to);
+    }
     if (!(e.target as Element).closest(".x")) return;
     const date = open;
     select(null);
     cells.find((c) => c.dataset.date === date)?.focus();
   });
   for (const b of sec.querySelectorAll<HTMLButtonElement>(".ib[data-step]")) b.addEventListener("click", () => void go(Number(b.dataset.step)));
-  seg.addEventListener("click", (e) => {
-    const b = (e.target as Element).closest<HTMLButtonElement>("button[data-mode]");
-    if (!b) return;
-    mode = b.dataset.mode as Mode;
-    const btns = [...seg.querySelectorAll("button")];
-    btns.forEach((x) => x.setAttribute("aria-checked", String(x === b)));
-    seg.style.setProperty("--i", String(btns.indexOf(b)));
-    draw();
-  });
-  seg.addEventListener("keydown", (e) => {
-    const btns = [...seg.querySelectorAll<HTMLButtonElement>("button")];
-    const i = btns.indexOf(e.target as HTMLButtonElement);
-    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    if (i < 0 || !d) return;
-    e.preventDefault();
-    const n = btns[(i + d + btns.length) % btns.length];
-    n.focus();
-    n.click();
-  });
 
   return { tick: () => load().catch(() => {}) };
 }

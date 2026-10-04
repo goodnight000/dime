@@ -23,10 +23,11 @@ type Settings = {
 type Theme = "system" | "light" | "dark";
 
 const FUNDS: [Fund, string, string][] = [
-  ["VOO", "VOO", "S&P 500"],
-  ["QQQ", "QQQ", "Nasdaq-100"],
-  ["SOXX", "SOXX", "Semiconductors"],
-  ["DRAM", "DRAM", "Memory"],
+  // Names, not tickers (ambiguity): the chat and the funds card say "S&P 500"; the ticker is the tooltip.
+  ["VOO", "S&amp;P 500", "VOO"],
+  ["QQQ", "Nasdaq", "QQQ · Nasdaq-100"],
+  ["SOXX", "Chips", "SOXX · Semiconductors"],
+  ["DRAM", "Memory", "DRAM · Memory chips"],
   ["CASH", "Cash", "High-yield savings"],
 ];
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);

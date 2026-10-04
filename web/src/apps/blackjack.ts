@@ -115,7 +115,8 @@ function outcome(v: View, s: S, result: Result | "push") {
     sub.textContent = `${amt} doesn't touch today.`;
   } else if (s.fund) {
     money(`${result === "bust" ? "Bust" : "Lost"}. `, ` → ${s.fund.name}`);
-    sub.textContent = s.fund.id === "CASH" ? "Saved in Cash." : `Invested in ${s.fund.id}.`;
+    // The peak's point, not a repeat of the ticker: losing didn't cost him the money.
+    sub.textContent = s.fund.id === "CASH" ? "Still your money, now in savings." : "Still your money, now invested.";
   } else {
     money(`${result === "bust" ? "Bust" : "Lost"}. `, " is waiting for a fund.");
     sub.textContent = "Pick one below.";

@@ -1,6 +1,6 @@
 /* Dashboard (DESIGN.md §5): today's number is the one focal point. The rail answers "how am I
    doing / how close are my goals / where is it going"; the work column "what happened this month /
-   what is my money doing". No card per section; whitespace and one hairline. Scoped to main.dash. */
+   what went in and out". No card per section, no rules between columns: spacing groups them. Scoped to main.dash. */
 main.dash {
   --col: 72rem;
 }
@@ -31,8 +31,6 @@ main.dash h2 .range {
 /* ---- Rail ---- */
 main.dash .rail {
   box-sizing: border-box;
-  border-right: 1px solid var(--rule);
-  padding-right: var(--s5);
   min-height: 100%;
   display: grid;
   align-content: start;
@@ -159,194 +157,14 @@ main.dash .gd.ready {
   font-weight: 500;
 }
 
-/* ---- Work: invested ---- */
+/* ---- Work ---- */
 main.dash .work {
   display: grid;
   gap: var(--s5);
   min-width: 0;
 }
-main.dash .ih {
-  display: grid;
-  gap: var(--s1);
-}
-main.dash .waiting {
-  font-size: var(--step--1);
-  color: var(--muted);
-  opacity: 0;
-  transition: opacity var(--quick);
-}
-main.dash .waiting.on {
-  opacity: 1;
-}
-main.dash .waiting .num {
-  vertical-align: baseline;
-}
-main.dash .tot {
-  display: grid;
-  gap: var(--s1);
-  padding: 0 0 var(--s2) var(--s4);
-}
-main.dash .tot .hero {
-  font-size: var(--step-2);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-}
-main.dash .delta {
-  font-size: var(--step--1);
-  color: var(--muted);
-}
-main.dash .delta .num {
-  vertical-align: baseline;
-}
-
-/* Chart beside the fund rows, on the calendar's columns, so the two blocks share one grid. */
-main.dash .ib-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 18rem;
-  gap: var(--s4);
-  align-items: stretch;
-}
-main.dash .plot {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: var(--s2);
-}
-main.dash .plot .ih {
-  margin-bottom: var(--s2);
-}
-main.dash .iside {
-  border-left: 1px solid var(--rule);
-}
-main.dash .chart {
-  position: relative;
-  min-height: 6rem;
-  touch-action: pan-y;
-}
-main.dash .chart svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-main.dash .chart .line {
-  stroke: var(--fg);
-  stroke-width: 1.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
-}
-main.dash .end-dot {
-  position: absolute;
-  left: -3px;
-  top: -3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--fg);
-}
-main.dash .end-dot {
-  transition: opacity var(--quick);
-}
-main.dash .chart.drawing .end-dot {
-  opacity: 0;
-  transition: none;
-}
-/* Hover: the point being read, on the line. */
-main.dash .hover-dot {
-  position: absolute;
-  left: -3px;
-  top: -3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--fg);
-  box-shadow: 0 0 0 2px var(--pane);
-  opacity: 0;
-  pointer-events: none;
-}
-main.dash .hair {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 1px;
-  background: var(--muted);
-  opacity: 0;
-  pointer-events: none;
-}
-main.dash .tip {
-  position: absolute;
-  z-index: 10;
-  top: calc(-1 * var(--s4));
-  left: 0;
-  padding: var(--s1) var(--s2);
-  background: var(--pane);
-  border: 1px solid var(--rule);
-  border-radius: 10px;
-  font-size: var(--step--2);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--fg) 35%, transparent);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-press) ease;
-}
-main.dash .chart.hovering :is(.hair, .tip, .hover-dot) {
-  opacity: 1;
-}
-main.dash .xl {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--step--2);
-  color: var(--muted);
-}
-main.dash .funds {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-main.dash .funds > li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-  min-height: 3rem;
-  padding-left: var(--s4);
-}
-main.dash .funds > li {
-  border-top: 1px solid var(--rule);
-}
-main.dash .funds .nm {
-  display: grid;
-  min-width: 0;
-  line-height: 1.35;
-}
-main.dash .funds .nm b {
-  font-size: var(--step--1);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-main.dash .funds .nm small {
-  font-size: var(--step--2);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-main.dash .funds .num {
-  vertical-align: baseline;
-}
-main.dash .funds .val {
-  font-size: var(--step--1);
-  font-variant-numeric: tabular-nums;
-}
-main.dash .funds .empty {
-  font-size: var(--step--1);
-  color: var(--muted);
-}
-
-/* ---- Spending (rail): name and amount on one line, the bar under them ---- */main.dash .bars {
+/* ---- Spending (rail): name and amount on one line, the bar under them ---- */
+main.dash .bars {
   list-style: none;
   margin: var(--s3) 0 0;
   padding: 0;
@@ -403,12 +221,6 @@ main.dash .bar i {
     background-color var(--quick);
 }
 
-/* A 900px-tall screen: the invested block stays compact under the calendar. */
-@media (min-width: 760px) and (max-height: 920px) {
-  main.dash .work {
-    gap: var(--s4);
-  }
-}
 /* Poll failing: figures stay, quietly dimmed until the next good poll. */
 main.dash .board.stale .work,
 main.dash .board.stale .rail {
@@ -416,7 +228,7 @@ main.dash .board.stale .rail {
   transition: opacity var(--quick);
 }
 
-/* ---- Phone: one column. hero + key-values, goal, Days, Invested, Spending. ---- */
+/* ---- Phone: one column. hero, goal, Days, Spending. ---- */
 @media (max-width: 759px) {
   main.dash .board {
     display: flex;
@@ -437,9 +249,6 @@ main.dash .board.stale .rail {
   main.dash .days {
     order: 3;
   }
-  main.dash .invested {
-    order: 4;
-  }
   main.dash .spending {
     order: 5;
   }
@@ -447,39 +256,71 @@ main.dash .board.stale .rail {
     font-size: var(--step-3);
     letter-spacing: -0.04em;
   }
-  main.dash .chart {
-    height: 6rem;
+
+}
+
+/* Overview | Investments: the settings screen's segmented control, in the page head. */
+main.dash .page-head .seg {
+  --thumb-c: var(--pane);
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+:root[data-theme="dark"] main.dash .page-head .seg {
+  --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) main.dash .page-head .seg {
+    --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
   }
-  main.dash .ib-body {
-    grid-template-columns: minmax(0, 1fr);
+}
+main.dash .page-head .seg button {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  height: 2rem;
+  padding: 0 var(--s3);
+  border-radius: 8px;
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 2rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--quick);
+}
+main.dash .page-head .seg button[aria-checked="true"] {
+  color: var(--fg);
+  cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .page-head .seg button:hover {
+    color: var(--fg);
   }
-  /* Phone: heading, total, chart, funds: one column in reading order. */
-  main.dash .ib-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s2);
-  }
-  main.dash :is(.plot, .iside) {
-    display: contents;
-  }
-  main.dash .plot .ih {
-    order: 1;
-    margin: 0;
-  }
-  main.dash .tot {
-    order: 2;
-  }
-  main.dash .chart {
-    order: 3;
-  }
-  main.dash .xl {
-    order: 4;
-  }
-  main.dash .funds {
-    order: 5;
-    margin-top: var(--s2);
-  }
-  main.dash :is(.funds > li, .tot) {
-    padding-left: 0;
-  }
+}
+main.dash .page-head .seg button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0;
+}
+main.dash .page-head .seg .thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 8px;
+  background: var(--thumb-c);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 10%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  translate: calc(var(--i, 0) * 100%) 0;
+  transition: translate var(--move) var(--ease-in-out);
+}
+main.dash .board[hidden],
+main.dash .inv[hidden] {
+  display: none;
 }

@@ -31,7 +31,7 @@ export type ThreadMessage = {
   reaction?: Tapback | null;
   link?: { url: string; title: string }; // a news URL's headline, for the link preview
 };
-export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
+export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today" | "girlmath";
 export type App = { id: string; kind: AppKind; version: number; state: any };
 export type Snapshot = {
   messages: ThreadMessage[];

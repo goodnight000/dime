@@ -110,7 +110,7 @@ async function sidebar() {
     } catch {
       // the server restarts under bun --watch; try again next tick
     }
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 }
 void sidebar();

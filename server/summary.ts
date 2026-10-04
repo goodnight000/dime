@@ -42,10 +42,10 @@ function price(fund: FundId, n: number): number {
 
 type Entry = State["ledger"][number];
 /** What one ledger entry is worth at the close of `day` (0 before it was made). */
-const worth = (e: Entry, day: Date) =>
+export const worth = (e: Entry, day: Date) =>
   new Date(e.at) > endOfDay(day) ? 0 : e.amount * (price(e.fund, dayNum(day)) / price(e.fund, dayNum(new Date(e.at))));
 
-function invested(s: State, at: Date) {
+export function invested(s: State, at: Date) {
   const monthStart = new Date(at.getFullYear(), at.getMonth(), 1);
   const lastMonth = new Date(monthStart.getTime() - 1);
   const byFund = new Map<FundId, { value: number; cost: number }>();

@@ -36,7 +36,8 @@ const funds: Renderer = (el, app, act) => {
     return;
   }
 
-  // First paint: the final state, still.
+  // First paint: the final state, still. Row blurbs show their first clause only, so none truncates
+  // ("The 100 biggest Nasdaq names, tech-h…"); the detail under the list carries the rest.
   const risk = (f: Fund) => s.risk[f.risk];
   el.innerHTML = `<div class="fp">
     <div class="fp-list" role="radiogroup" aria-label="${s.moving?.reason === "cfo" ? "Where the cash goes" : "Where losses go"}">${s.funds
@@ -46,7 +47,7 @@ const funds: Renderer = (el, app, act) => {
           ${brand(f.ticker)}
           <span class="fp-text"><span class="fp-name"><b>${esc(f.name)}</b>${
             f.ticker === f.name ? "" : ` <small>${esc(f.ticker)}</small>`
-          }</span><span class="fp-blurb">${esc(f.blurb)}</span></span>
+          }</span><span class="fp-blurb">${esc(f.blurb.split(/[.,] /)[0].replace(/\.$/, ""))}</span></span>
           <span class="fp-risk" role="img" aria-label="${risk(f)} risk">${[1, 2, 3, 4]
             .map((n) => `<i${n <= f.risk ? ` class="on"` : ""}></i>`)
             .join("")}</span>

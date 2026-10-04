@@ -19,19 +19,11 @@ type DemoState = {
 };
 // [label, key, action, body]; key "" = no shortcut.
 type Btn = [string, string, string, object?];
-type Section = { title: string; buttons: Btn[]; seg?: "force" | "tone"; form?: "swipe" | "friend" };
+type Section = { title: string; buttons: Btn[]; seg?: "force" | "tone"; form?: "swipe" | "friend"; more?: true };
 
+// The beats Charles presses on stage, in DEMO.md order (Hick/Fitts: only these are in view, big).
+// Everything else sits under "More controls"; its keys still work while it's closed.
 const SECTIONS: Section[] = [
-  { title: "Morning", buttons: [["Morning", "M", "morning"]] },
-  {
-    title: "Swipe",
-    buttons: [
-      ["Blue Bottle matcha $7", "1", "swipe", { merchant: "Blue Bottle", amount: 7, category: "coffee" }],
-      ["DoorDash $24", "2", "swipe", { merchant: "DoorDash", amount: 24, category: "food" }],
-      ["Nobu $64", "3", "swipe", { merchant: "Nobu", amount: 64, category: "food" }],
-    ],
-    form: "swipe",
-  },
   {
     title: "Blackjack next hand",
     seg: "force",
@@ -42,11 +34,35 @@ const SECTIONS: Section[] = [
       ["Fair", "F", "force-blackjack", { result: "fair" }],
     ],
   },
+  { title: "Swipe", buttons: [["Blue Bottle matcha $7", "1", "swipe", { merchant: "Blue Bottle", amount: 7, category: "coffee" }]] },
   { title: "Should I buy", buttons: [["Sneakers $280", "S", "say", { thread: "dime", text: "should I buy these sneakers for $280?" }]] },
   { title: "CFO", buttons: [["Scan", "C", "cfo-scan"]] },
   {
+    title: "Group",
+    buttons: [
+      ["Post Penny claim", "P", "say", { thread: "group", text: "Will Penny spend $80 on DoorDash today?" }],
+      ["Penny DoorDash $38", "4", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 38 }],
+      ["Penny DoorDash $52", "5", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 52 }],
+    ],
+  },
+  { title: "Clock", buttons: [["Midnight", "N", "midnight"]] },
+  { title: "Chase", buttons: [["Disconnect", "X", "disconnect", { id: "chase" }]] },
+  { title: "Goal", buttons: [["Fill goal", "G", "fill-goal"]] },
+  { title: "Tone", seg: "tone", buttons: [["Nice", "", "tone", { tone: "nice" }], ["Savage", "", "tone", { tone: "savage" }]] },
+  {
+    title: "Swipe",
+    more: true,
+    buttons: [
+      ["DoorDash $24", "2", "swipe", { merchant: "DoorDash", amount: 24, category: "food" }],
+      ["Nobu $64", "3", "swipe", { merchant: "Nobu", amount: 64, category: "food" }],
+    ],
+    form: "swipe",
+  },
+  { title: "Friend swipe", more: true, buttons: [], form: "friend" },
+  {
     // Simulated bank / brokerage / Venmo data landing (server/simulate.ts); Dime reacts to each.
     title: "Events",
+    more: true,
     buttons: [
       ["Paycheck $5,425", "", "paycheck"],
       ["Refund", "", "refund"],
@@ -64,19 +80,8 @@ const SECTIONS: Section[] = [
       ["Weekly recap", "", "weekly-recap"],
     ],
   },
-  {
-    title: "Group",
-    buttons: [
-      ["Post Penny claim", "P", "say", { thread: "group", text: "Will Penny spend $80 on DoorDash today?" }],
-      ["Penny DoorDash $38", "4", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 38 }],
-      ["Penny DoorDash $52", "5", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 52 }],
-    ],
-    form: "friend",
-  },
-  { title: "Clock", buttons: [["Midnight", "N", "midnight"], ["Skip day", "D", "skip-day"]] },
-  { title: "Chase", buttons: [["Disconnect", "X", "disconnect", { id: "chase" }], ["Reconnect", "K", "connect", { id: "chase" }]] },
-  { title: "Goal", buttons: [["Fill goal", "G", "fill-goal"]] },
-  { title: "Tone", seg: "tone", buttons: [["Nice", "", "tone", { tone: "nice" }], ["Savage", "", "tone", { tone: "savage" }]] },
+  { title: "Clock", more: true, buttons: [["Morning", "M", "morning"], ["Skip day", "D", "skip-day"]] },
+  { title: "Chase", more: true, buttons: [["Reconnect", "K", "connect", { id: "chase" }]] },
 ];
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -97,6 +102,10 @@ const FORMS = {
     </form>`,
 };
 
+const section = (s: Section) => `<section${s.seg ? ` class="seg" data-seg="${s.seg}"` : ""}><h2>${s.title}</h2>
+            ${s.buttons.length ? `<div class="dp-row">${s.buttons.map(button).join("")}</div>` : ""}
+            ${s.form ? FORMS[s.form] : ""}<p class="dp-err" aria-live="polite"></p></section>`;
+
 const clock = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const hms = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 const usd = (n: number) => "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -104,15 +113,12 @@ const usd = (n: number) => "$" + n.toLocaleString("en-US", { maximumFractionDigi
 const demo: Screen = (main, _session, current) => {
   main.className = "dp";
   main.innerHTML = `
-    <header class="dp-head"><h1>Demo controls</h1><p class="dp-clock">—</p></header>
+    <header class="dp-head"><h1>Demo controls</h1><p class="dp-clock">—</p>
+      <section class="dp-reset"><button type="button" class="danger" data-action="reset" data-key="R">Reset <kbd>R</kbd></button><p class="dp-err" aria-live="polite"></p></section></header>
     <div class="dp-cols">
       <div class="dp-controls">
-        ${SECTIONS.map(
-          (s) => `<section${s.seg ? ` class="seg" data-seg="${s.seg}"` : ""}><h2>${s.title}</h2>
-            <div class="dp-row">${s.buttons.map(button).join("")}</div>
-            ${s.form ? FORMS[s.form] : ""}<p class="dp-err" aria-live="polite"></p></section>`,
-        ).join("")}
-        <section><h2>Reset</h2><div class="dp-row"><button type="button" class="danger" data-action="reset" data-key="R">Reset <kbd>R</kbd></button></div><p class="dp-err" aria-live="polite"></p></section>
+        ${SECTIONS.filter((s) => !s.more).map(section).join("")}
+        <details class="dp-more"><summary>More controls</summary>${SECTIONS.filter((s) => s.more).map(section).join("")}</details>
       </div>
       <aside class="dp-state">
         <dl class="dp-kv"></dl>

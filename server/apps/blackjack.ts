@@ -118,7 +118,7 @@ function settle(app: App, draws: number, revealed: boolean) {
   // Dime speaks once the card has played its ending (flip, Dime's draws 600ms apart, outcome).
   const pause = 1500 + (revealed ? 700 + 600 * draws : 0);
   const how = { win: "Charles beat you", blackjack: "Charles hit blackjack on the first deal", "dime-bust": "you busted", lose: "you beat Charles", bust: "Charles busted" }[s.result!];
-  const facts = `Blackjack hand against you (Dime) for ${s.item} (${usd(s.amount)}) just ended: ${how}. The card above already shows the result: react to it, don't restate it. Call yourself "me", never "the CFO" or "the dealer".`;
+  const facts = `Blackjack hand against you (Dime) for ${s.item} (${usd(s.amount)}) just ended: ${how}. The card above already shows the result: react to it, don't restate it. Talk about yourself in the first person ("I won", "I busted"), never "the CFO" or "the dealer".`;
   // Called after the money moved, so "left today" is the settled number.
   const later = (outcome: string, ...lines: (string | App)[]) =>
     void speak("dime", `${facts} ${outcome} Left today now: ${usd(money.today(state, now()))}.`, lines, pause);

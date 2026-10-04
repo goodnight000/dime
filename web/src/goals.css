@@ -195,3 +195,14 @@ main.settings .g-note.err {
     width: 2rem;
   }
 }
+
+/* Friction pass (Hick): reorder and remove are secondary; on hover devices they appear with the row,
+   the standard list-row pattern. Space stays reserved, so nothing shifts. */
+@media (hover: hover) and (pointer: fine) {
+  main.settings .goal-list .gr:not(:hover):not(:focus-within) :is(.gr-move, [data-do="remove"]) {
+    opacity: 0;
+  }
+  main.settings .goal-list :is(.gr-move, [data-do="remove"]) {
+    transition: opacity var(--quick);
+  }
+}

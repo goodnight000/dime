@@ -245,3 +245,31 @@ main.dp.down .dp-clock::after {
     gap: var(--s1);
   }
 }
+
+/* Friction pass: on-stage beats get 2.5rem targets; extras collapse under "More controls";
+   Reset sits in the header, away from the beat buttons. */
+.dp-controls > section button {
+  height: 2.5rem;
+  line-height: 2.5rem;
+  padding: 0 1rem;
+}
+.dp-more > summary {
+  padding: var(--s2) 0;
+  color: var(--muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+.dp-head .dp-reset {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0;
+  border: 0;
+  margin-left: auto;
+}
+.dp-head .dp-clock {
+  margin-left: auto;
+}
+.dp-head .dp-reset {
+  margin-left: 0;
+}

@@ -1,7 +1,6 @@
 // Accounts (GET /api/accounts, POST /api/accounts/:id/connect): a mock bank, the paper brokerage,
 // and two services that are not connected yet. Connection state lives in state.accounts.
 import { state, type Account } from "./state.ts";
-import { now } from "./clock.ts";
 import { summary } from "./summary.ts";
 
 type Meta = { name: string; kind: Account["kind"]; glyph: "bank" | "mark" | "card" | "chart"; blurb: string; numbers: string; connected: boolean };
@@ -33,17 +32,7 @@ export function accounts() {
         : m.numbers;
     return { id: a.id, name: m.name, kind: a.kind, glyph: m.glyph, connected: a.connected, subtitle: a.connected ? numbers : m.blurb };
   });
-  const chase = state.accounts.find((a) => a.id === "chase");
-  // Five most recent Chase transactions up to the demo clock, newest first.
-  const at = now();
-  const recent = chase?.connected
-    ? state.txns
-        .filter((t) => new Date(t.at) <= at)
-        .sort((a, b) => b.at.localeCompare(a.at))
-        .slice(0, 5)
-        .map((t) => ({ id: t.id, at: t.at, merchant: t.merchant, kind: t.kind, amount: t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount }))
-    : [];
-  return { accounts: list, recent };
+  return { accounts: list };
 }
 
 /** Connects a mock account. Unknown ids are refused (the client shows its error state). */

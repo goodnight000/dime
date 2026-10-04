@@ -78,8 +78,9 @@ async function order(app: App) {
   const left = money.today(state, now());
   const next = money.activeGoal(state);
   const queued = !next.done && next.saved < next.price;
-  await speak("dime", `${outcome} It cost ${usd(s.price)}, paid from what the goal saved as a covered purchase, so today's number didn't move. Left today: ${usd(left)}. ${queued ? `Next in his goals: ${next.name} ${next.emoji}, ${money.pctOf(next)}% saved; the sweeps go there now. Say so.` : "No goals left: ask what he wants to save for next."}`,
-    [`ordered 📦 the ${usd(s.price)} came out of the goal fund, so your ${usd(left)} today didn't budge`, queued ? `next up: ${next.name} ${next.emoji} ${money.pctOf(next)}%` : `ok what are we saving for next? 👀`]);
+  const far = next.saved ? `${usd(next.saved)} of ${usd(next.price)} saved` : `${usd(next.price)}, starting from $0`;
+  await speak("dime", `${outcome} It cost ${usd(s.price)}, paid from what the goal saved as a covered purchase, so today's number didn't move. Left today: ${usd(left)}. ${queued ? `Next in his goals: ${next.name} ${next.emoji}, ${far}; the sweeps go there now. Say so.` : "No goals left: ask what he wants to save for next."}`,
+    [`ordered 📦 the ${usd(s.price)} came out of the goal fund, so your ${usd(left)} today didn't budge`, queued ? `next up: ${next.name} ${next.emoji}, ${far}` : `ok what are we saving for next? 👀`]);
 }
 
 export const actions: Record<string, (app: App, body: any) => void> = {

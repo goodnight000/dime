@@ -1,7 +1,7 @@
 import "./dashboard.css";
 import { api } from "./api.ts";
-import { roll, usd, signed } from "./num.ts";
-import { T, reduced, later } from "./motion.ts";
+import { roll, usd } from "./num.ts";
+import { T, later } from "./motion.ts";
 import type { Screen } from "./main.ts";
 import { categoryIcon } from "./brands.ts";
 import { ring, face, level } from "./ring.ts";
@@ -21,13 +21,6 @@ type Summary = {
   to_goal: number;
   goal: { name: string; price: number; saved: number; pct: number; eta_date: string };
   goals: Goal[];
-  invested: {
-    total: number;
-    month_delta: number;
-    series: { date: string; value: number }[];
-    funds: { id: string; name: string; ticker: string; value: number; change_pct: number }[];
-    waiting: number;
-  };
   spending: { category: string; label: string; amount: number }[];
 };
 
@@ -37,13 +30,7 @@ const local = (ymd: string) => {
 };
 const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 const day = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
-const pct = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toFixed(1) + "%";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
-const fine = matchMedia("(hover: hover) and (pointer: fine)");
-
-/** The line draws in once per session (§5 chart rules), not on every visit. */
-let drawnIn = false;
-
 /** The latest summary seen anywhere (main.ts's sidebar poll fetches the same one), so arriving
  *  here paints real figures in the first frame instead of "—" that snap to numbers mid-rise. */
 let cached: Summary | null = null;
@@ -56,7 +43,14 @@ const when = (g: Goal) => (g.status === "ready" ? "Ready to order" : g.status ==
 const dashboard: Screen = (main, _session, current) => {
   main.classList.add("dash");
   main.innerHTML = `
-    <header class="page-head"><h1 class="date">&nbsp;</h1></header>
+    <header class="page-head">
+      <h1 class="date">&nbsp;</h1>
+      <div class="seg view" role="radiogroup" aria-label="View" style="--n:2;--i:0">
+        <i class="thumb" aria-hidden="true"></i>
+        <button role="radio" aria-checked="true" data-view="overview">Overview</button>
+        <button role="radio" aria-checked="false" data-view="investments">Investments</button>
+      </div>
+    </header>
     <div class="board still">
       <aside class="rail">
         <section class="today" aria-label="Today">
@@ -84,43 +78,14 @@ const dashboard: Screen = (main, _session, current) => {
       </aside>
       <div class="work">
         <section class="days" aria-labelledby="days-h"></section>
-        <section class="invested ib-body" aria-labelledby="inv-h">
-          <div class="plot">
-            <div class="ih">
-              <h2 id="inv-h">Invested</h2>
-              <small class="waiting"><span class="num" data-k="waiting"></span> waiting for a fund</small>
-            </div>
-            <div class="chart">
-              <svg aria-hidden="true"><path class="line"/></svg>
-              <i class="end-dot" hidden></i>
-              <i class="hair"></i>
-              <i class="hover-dot"></i>
-              <div class="tip" role="tooltip"></div>
-            </div>
-            <div class="xl"><span></span><span></span></div>
-          </div>
-          <div class="iside">
-            <div class="tot">
-              <span class="num hero" data-k="total">—</span>
-              <small class="delta"><span class="num" data-k="delta">—</span> this month</small>
-            </div>
-            <ul class="funds"></ul>
-          </div>
-        </section>
       </div>
-    </div>`;
+    </div>
+    <div class="inv" hidden></div>`;
 
   const $ = <E extends Element = HTMLElement>(s: string) => main.querySelector<E & HTMLElement>(s)!;
   const k = (key: string) => $(`[data-k="${key}"]`);
   const set = (key: string, text: string) => roll(k(key), text);
 
-  const chart = $(".chart");
-  const svg = $<SVGSVGElement>(".chart svg");
-  const path = $<SVGPathElement>(".chart .line");
-  const endDot = $(".end-dot");
-  const hair = $(".hair");
-  const hoverDot = $(".hover-dot");
-  const tip = $(".tip");
   const hero = $(".goal > .ring");
   let heroId = "";
   let queueKey = "";
@@ -128,89 +93,7 @@ const dashboard: Screen = (main, _session, current) => {
   const cal = mountCalendar($(".days"));
 
   let last: Summary | null = null;
-  let pts: { x: number; y: number }[] = [];
 
-  /** Lays the line out in pixels for the chart's current size. Called on data and on resize. */
-  function drawChart(s: Summary) {
-    const w = chart.clientWidth;
-    const h = chart.clientHeight;
-    if (!w || !h) return;
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    const pad = 6;
-    const vals = s.invested.series.map((p) => p.value);
-    const empty = vals.every((v) => v === 0);
-    let lo = Math.min(...vals);
-    let hi = Math.max(...vals);
-    const span = Math.max(hi - lo, hi * 0.02, 1);
-    lo -= span * 0.12;
-    hi += span * 0.12;
-    const right = w - 4; // the end dot's radius stays inside
-    pts = vals.map((v, i) => ({
-      x: (i / (vals.length - 1)) * right,
-      y: empty ? h - pad : pad + (1 - (v - lo) / (hi - lo)) * (h - 2 * pad),
-    }));
-    // Stepped: hold each close until the next day, then step. It's a ledger, not a ticker.
-    path.setAttribute("d", pts.map((p, i) => (i ? `H${p.x.toFixed(1)}V${p.y.toFixed(1)}` : `M${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(""));
-    const end = pts[pts.length - 1];
-    endDot.hidden = empty; // no end label: the total above says it
-    endDot.style.translate = `${end.x}px ${end.y}px`;
-  }
-
-  function drawIn() {
-    if (drawnIn || reduced() || last?.invested.series.every((p) => p.value === 0)) return;
-    drawnIn = true;
-    const len = path.getTotalLength();
-    path.style.strokeDasharray = `${len}`;
-    path.style.strokeDashoffset = `${len}`;
-    chart.classList.add("drawing");
-    void later(T.move).then(() => {
-      path.style.transition = `stroke-dashoffset var(--t-data) var(--ease-in-out)`;
-      path.style.strokeDashoffset = "0";
-      setTimeout(() => ((path.style.cssText = ""), chart.classList.remove("drawing")), T.data);
-    });
-  }
-
-  function hover(e: PointerEvent) {
-    if (!fine.matches || !last || !pts.length || last.invested.series.every((p) => p.value === 0)) return;
-    const r = chart.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const i = Math.max(0, Math.min(pts.length - 1, Math.round((x / pts[pts.length - 1].x) * (pts.length - 1))));
-    const p = last.invested.series[i];
-    hair.style.translate = `${pts[i].x}px 0`;
-    hoverDot.style.translate = `${pts[i].x}px ${pts[i].y}px`;
-    tip.textContent = `${short.format(local(p.date))} · ${usd(p.value, true)}`;
-    const tw = tip.offsetWidth;
-    tip.style.translate = `${Math.max(0, Math.min(r.width - tw, x - tw / 2))}px 0`;
-    chart.classList.add("hovering");
-  }
-  chart.addEventListener("pointermove", hover);
-  chart.addEventListener("pointerleave", () => chart.classList.remove("hovering"));
-
-  // Fund rows: name, ticker and return since bought in one line, value right. No swatches or
-  // allocation bar: the values already say the split.
-  function drawFunds(s: Summary) {
-    const list = $(".funds");
-    const funds = s.invested.funds;
-    const key = funds.map((f) => f.id).join();
-    if (list.dataset.key !== key) {
-      list.dataset.key = key;
-      list.innerHTML = funds.length
-        ? funds
-            .map(
-              (f) => `<li data-id="${f.id}"><span class="nm"><b>${esc(f.name)}</b><small>${f.ticker ? `${esc(f.ticker)} · ` : ""}<span class="num chg"></span> since bought</small></span><span class="num val"></span></li>`,
-            )
-            .join("")
-        : `<li class="empty">Nothing invested yet. Lose a hand and it lands here.</li>`;
-    }
-    for (const f of funds) {
-      const row = list.querySelector<HTMLElement>(`[data-id="${f.id}"]`)!;
-      roll(row.querySelector<HTMLElement>(".val")!, usd(f.value, true));
-      const chg = row.querySelector<HTMLElement>(".chg")!;
-      roll(chg, pct(f.change_pct));
-      chg.classList.toggle("pos", f.change_pct > 0);
-      chg.classList.toggle("neg", f.change_pct < 0);
-    }
-  }
 
   function drawSpending(s: Summary) {
     const list = $(".bars");
@@ -282,38 +165,21 @@ const dashboard: Screen = (main, _session, current) => {
     };
     if (!first && railMoved && prevPct !== top.pct && top.id === heroId) void later(T.slow).then(goal);
     else goal();
-    set("total", usd(s.invested.total, true));
-    // A blackjack loss before a fund is picked: shown, never counted in the total.
-    const waiting = $(".waiting");
-    if (s.invested.waiting > 0) set("waiting", usd(s.invested.waiting));
-    waiting.classList.toggle("on", s.invested.waiting > 0);
-    const delta = k("delta");
-    roll(delta, signed(s.invested.month_delta, true));
-    delta.classList.toggle("pos", s.invested.month_delta > 0);
-    delta.classList.toggle("neg", s.invested.month_delta < 0);
-    const series = s.invested.series;
-    const xl = $(".xl").children;
-    [0, series.length - 1].forEach((i, j) => (xl[j].textContent = short.format(local(series[i].date))));
-    drawChart(s);
-    drawFunds(s);
     drawSpending(s);
-    if (first) drawIn();
   }
 
-
-  const ro = new ResizeObserver(() => last && drawChart(last));
-  ro.observe(chart);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const alive = () => current() && main.isConnected;
   const tick = async () => {
-    if (!alive()) return ro.disconnect();
+    if (!alive()) return;
     try {
       const s = await api<Summary>("GET", "/summary");
-      if (!alive()) return ro.disconnect();
+      if (!alive()) return;
       cached = s;
       draw(s);
-      void cal.tick();
+      if (view === "investments") void inv?.tick();
+      else void cal.tick();
       // First paint is still (§ rule 3): transitions stay off until the first data is laid out.
       if (board.classList.contains("still")) void board.offsetWidth, board.classList.remove("still");
       board.classList.remove("stale");
@@ -323,6 +189,40 @@ const dashboard: Screen = (main, _session, current) => {
     clearTimeout(timer);
     timer = setTimeout(tick, 2000);
   };
+  // Overview | Investments: one page, two views, deep-linkable as /dashboard?view=investments.
+  type View = "overview" | "investments";
+  const seg = $(".seg.view");
+  const invHost = $(".inv");
+  let view: View = new URLSearchParams(location.search).get("view") === "investments" ? "investments" : "overview";
+  let inv: { tick: () => Promise<void> } | null = null;
+  async function show(v: View, push = false) {
+    view = v;
+    const btns = [...seg.querySelectorAll<HTMLButtonElement>("button")];
+    btns.forEach((b) => b.setAttribute("aria-checked", String(b.dataset.view === v)));
+    seg.style.setProperty("--i", String(btns.findIndex((b) => b.dataset.view === v)));
+    board.hidden = v !== "overview";
+    invHost.hidden = v !== "investments";
+    if (push) history.replaceState(null, "", v === "investments" ? "/dashboard?view=investments" : "/dashboard");
+    if (v === "investments") {
+      inv ??= (await import("./investments.ts")).mountInvestments(invHost);
+      void inv.tick();
+    } else void cal.tick();
+  }
+  seg.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>("button[data-view]");
+    if (b && b.dataset.view !== view) void show(b.dataset.view as View, true);
+  });
+  seg.addEventListener("keydown", (e) => {
+    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const btns = [...seg.querySelectorAll<HTMLButtonElement>("button")];
+    const n = btns[(btns.findIndex((b) => b.dataset.view === view) + d + btns.length) % btns.length];
+    n.focus();
+    n.click();
+  });
+  void show(view);
+
   if (cached) draw(cached); // still: the board keeps .still until the first fetched draw
   void tick();
 };

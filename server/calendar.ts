@@ -129,6 +129,15 @@ const lostOn = (s: State, from: number, to: number) => {
   return out.reduce((t, l) => t + l.amount, 0) - s.bonus.filter(inDay).reduce((t, b) => t + b.amount, 0);
 };
 
+/** The diverging heat step: +1..+3 by the share of the day's number left (under), −1..−3 by how far
+ *  over it went, 0 exactly on it. A day before the history began stays 0 (no data). */
+export function heatOf(net: number, budget: number): number {
+  if (!budget || Math.abs(net) < 1) return 0;
+  const r = net / budget;
+  if (r > 0) return r >= 0.75 ? 3 : r >= 0.35 ? 2 : 1;
+  return -r >= 0.75 ? -3 : -r >= 0.25 ? -2 : -1;
+}
+
 export function calendar(s: State, at: Date, month = ym(at)) {
   const subs = new Set(s.subscriptions.map((x) => x.merchant));
   const today = money.dayStart(at).getTime();
@@ -151,6 +160,7 @@ export function calendar(s: State, at: Date, month = ym(at)) {
   const [y, m] = month.split("-").map(Number);
   const length = new Date(y, m, 0).getDate();
   const due = projected(s, at, month);
+  const historyStart = money.dayStart(new Date(s.txns.reduce((a, t) => (t.at < a ? t.at : a), at.toISOString()))).getTime();
   const days = Array.from({ length }, (_, i) => {
     const day = new Date(y, m - 1, i + 1, 12);
     const from = money.dayStart(day).getTime();
@@ -169,6 +179,9 @@ export function calendar(s: State, at: Date, month = ym(at)) {
     const budget = future ? null : isToday ? money.budget(s, at) : flat(s, day);
     const over = future ? 0 : isToday ? money.over(s, at) : Math.max(0, Math.ceil(went + lostOn(s, from, to) - budget!));
     const outcome = future ? "future" : over > 0 ? "over" : went > 0 ? "under" : "none";
+    // Under (+) or over (−) the day's number; today it's the live "left today".
+    const net = future ? null : isToday ? money.today(s, at) : cents(budget! - went - lostOn(s, from, to));
+    const heat = future || isToday || to <= historyStart ? 0 : heatOf(net!, budget!);
     const bills: Bill[] = future
       ? due.filter((b) => ymd(new Date(b.at)) === ymd(day))
       : [
@@ -184,6 +197,8 @@ export function calendar(s: State, at: Date, month = ym(at)) {
       spend,
       budget,
       over,
+      net,
+      heat,
       outcome,
       txns: txns
         .map((t) => ({ id: t.id, at: t.at, merchant: t.merchant, amount: t.amount, category: t.category, kind: t.kind, covered: !!t.covered, cost: costOf(t, subs) }))
@@ -210,6 +225,24 @@ export function calendar(s: State, at: Date, month = ym(at)) {
       due: due.filter((b) => new Date(b.at) > at).sort((a, b) => a.at.localeCompare(b.at)),
     },
     days,
+    recent: recent(s, at, subs),
+  };
+}
+
+/** The last 7 days, whatever month is open: money in (pay, refunds) vs out (card spend, bills; a
+ *  purchase won at blackjack never left), and the transactions newest first. Transfers are neither. */
+function recent(s: State, at: Date, subs: Set<string>) {
+  const from = money.dayStart(at).getTime() - 6 * DAY;
+  const txns = s.txns
+    .filter((t) => new Date(t.at).getTime() >= from && new Date(t.at) <= at)
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const inn = txns.filter((t) => t.kind === "income" || t.kind === "refund").reduce((n, t) => n + t.amount, 0);
+  const out = txns.filter((t) => (t.kind === "spend" || t.kind === "bill") && !t.covered).reduce((n, t) => n + t.amount, 0);
+  return {
+    from: ymd(new Date(from)),
+    in: cents(inn),
+    out: cents(out),
+    txns: txns.slice(0, 40).map((t) => ({ id: t.id, at: t.at, date: ymd(new Date(t.at)), merchant: t.merchant, amount: t.amount, category: t.category, kind: t.kind, covered: !!t.covered, cost: costOf(t, subs) })),
   };
 }
 export type Calendar = ReturnType<typeof calendar>;

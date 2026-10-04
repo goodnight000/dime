@@ -43,6 +43,8 @@ export function faithful(words: string, facts: string): boolean {
   const nums = (s: string) =>
     new Set((s.match(/\d[\d,]*(?:\.\d+)?k?/gi) ?? []).map((n) => String(Number(n.replace(/[,k]/gi, "")) * (/k$/i.test(n) ? 1000 : 1))));
   const known = nums(facts);
+  // Letters outside Latin script (a stray "букмекie" from the model) mean garbled output.
+  if (/[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u.test(words.replace(/\p{Extended_Pictographic}|\p{Emoji_Component}/gu, ""))) return false;
   return [...nums(words)].every((n) => known.has(n));
 }
 
@@ -98,9 +100,12 @@ function buy(thread: Thread, item: string, amount: number) {
   const g = money.activeGoal(state);
   const days = money.lag(state, at, amount);
   const asked = `Charles asked if he should buy ${item} for ${usd(amount)}. Left today: ${usd(left)}. Girl math: ${g.name} ${days} later if he buys it.`;
-  if (amount > left)
-    return speak(thread, `${asked} It's more than today's number: the answer is no. Say no, kindly or savagely per tone. Don't mention blackjack or betting.`,
-      [`${usd(amount)} on ${item}? not today, you've only got ${usd(left)} 🙅`, `it'd push the ${g.name} back ${days} too. sleep on it?`]);
+  if (amount > left) {
+    // Over today: no game. The girl math card carries the goal dates; the words just say no.
+    const gm = open("girlmath", { item, amount });
+    return speak(thread, `Charles asked if he should buy ${item} for ${usd(amount)}. Left today: ${usd(left)}. It's more than today's number: the answer is no. Say no in one line, kindly or savagely per tone. Don't mention blackjack or betting. A girl math card follows your words showing the ${g.name} lands ${gm.state.later} later if he buys it; don't repeat its dates.`,
+      [`${usd(amount)} on ${item}? not today, you've only got ${usd(left)} 🙅 here's the girl math`, gm]);
+  }
   if (!state.user.blackjack) // Settings: impulse blackjack off
     return speak(thread, `${asked} It fits in today's number. Impulse blackjack is off in his settings, so no game: tell him it fits and what it costs the goal.`,
       [`${item} fits, you'd still have ${usd(left - amount)} today after`, `just know it's the ${g.name} ${days} later. your call`]);

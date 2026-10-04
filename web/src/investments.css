@@ -1,0 +1,421 @@
+/* Investments view (investments.ts). One focal point, the total. Main column: total, chart, the
+   split and fund rows; beside it "Where it came from". Separation by spacing, rows by hairlines. */
+.inv {
+  --seg-thumb: var(--pane);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  column-gap: var(--s6);
+  align-items: start;
+}
+:root[data-theme="dark"] .inv {
+  --seg-thumb: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .inv {
+    --seg-thumb: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+  }
+}
+.inv.stale > * {
+  opacity: 0.6;
+  transition: opacity var(--quick);
+}
+.inv .num:not([aria-label]) {
+  color: var(--muted);
+}
+.inv .num {
+  vertical-align: baseline;
+}
+.inv h2 {
+  font-size: var(--step-0);
+  font-weight: 600;
+}
+.inv-main {
+  min-width: 0;
+  display: grid;
+}
+
+/* ---- Total ---- */
+.inv-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+.inv-tot .lbl {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.inv .hero.big {
+  font-size: var(--step-4);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  min-width: 6ch;
+  margin-top: var(--s1);
+}
+.inv .hero.big :is(.dg, .strip > span, .ch) {
+  height: 1em;
+}
+.inv .hero.big .strip {
+  transform: translateY(calc(var(--d) * -1em));
+}
+.inv-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s4);
+  margin-top: var(--s2);
+  font-size: var(--step--1);
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* Range: the calendar's segmented control, small. */
+.inv .seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  margin-bottom: var(--s1);
+}
+.inv .seg:empty {
+  display: none;
+}
+.inv .seg button {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  height: 1.75rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 1.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.inv .seg button[aria-checked="true"] {
+  color: var(--fg);
+  cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inv .seg button:hover {
+    color: var(--fg);
+  }
+}
+.inv .seg button:focus-visible {
+  outline: 2px solid var(--fg);
+}
+.inv .seg .thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 8px;
+  background: var(--seg-thumb);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 10%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  translate: calc(var(--i, 0) * 100%) 0;
+  transition: translate var(--move) var(--ease-in-out);
+}
+
+/* ---- Chart (DESIGN.md §5 chart rules) ---- */
+.inv-chart {
+  position: relative;
+  height: 13rem;
+  margin-top: var(--s5); /* room for the tooltip above the line */
+  touch-action: pan-y;
+}
+.inv-chart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.inv-chart .grid line {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.inv-chart :is(.line, .put) {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.inv-chart .line {
+  stroke: var(--fg);
+  stroke-width: 1.75;
+}
+.inv-chart .put {
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  opacity: 0.55;
+}
+.inv-chart :is(.end-dot, .hover-dot) {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg);
+  pointer-events: none;
+}
+.inv-chart .hover-dot {
+  box-shadow: 0 0 0 2px var(--pane);
+  opacity: 0;
+}
+.inv-chart .hair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+}
+.inv-chart .tip {
+  position: absolute;
+  z-index: 10;
+  top: calc(-1 * var(--s4));
+  left: 0;
+  padding: var(--s1) var(--s2);
+  background: var(--pane);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--fg) 35%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-press) ease;
+}
+.inv-chart .tip b {
+  font-weight: 500;
+  color: var(--fg);
+}
+.inv-chart.hovering :is(.hair, .tip, .hover-dot) {
+  opacity: 1;
+}
+.inv-xl,
+.inv-key {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s2);
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.inv-key {
+  justify-content: flex-start;
+  gap: var(--s3);
+  margin-top: var(--s1);
+}
+.inv-key span::before {
+  content: "";
+  display: inline-block;
+  width: 0.9rem;
+  height: 0;
+  margin-right: var(--s1);
+  vertical-align: middle;
+  border-top: 1.75px solid var(--fg);
+}
+.inv-key .k-put::before {
+  border-top: 1.25px solid color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+/* ---- Funds: the split bar with direct labels, then dividered rows ---- */
+.inv-funds {
+  margin-top: var(--s5);
+}
+.inv .alloc-l,
+.inv .alloc {
+  display: flex;
+  gap: 2px;
+}
+.inv .alloc-l {
+  margin-top: var(--s3);
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+.inv .alloc-l span {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inv .alloc-l b {
+  font-weight: 500;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.inv .alloc {
+  height: 6px;
+  margin-top: var(--s1);
+}
+.inv .alloc i {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 3px;
+  /* Neutral tonal steps, darkest first: the order is the size order. */
+  background: color-mix(in srgb, var(--fg) max(14%, calc(80% - var(--t) * 24%)), var(--bg-2));
+  transition: flex-grow var(--t-slow) var(--ease-in-out);
+}
+.inv .frows {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+}
+.inv .frows > li {
+  --bs: 2rem;
+  display: grid;
+  grid-template-columns: var(--bs) minmax(0, 1fr) 6.5rem 9rem;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 3.5rem;
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--rule);
+  box-sizing: border-box;
+}
+.inv .fn {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+.inv .fn b {
+  font-size: var(--step-0);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inv .fn b small {
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: var(--s1);
+}
+.inv :is(.fn > small, .risk, .fv small) {
+  font-size: var(--step--2);
+  color: var(--muted);
+  line-height: 1.35;
+}
+.inv .fn > small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inv .fv {
+  display: grid;
+  justify-items: end;
+  line-height: 1.35;
+}
+.inv .fv .val {
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+}
+.inv .fv small {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inv .empty {
+  display: block !important;
+  font-size: var(--step--1);
+  color: var(--muted);
+  padding: var(--s3) 0;
+}
+
+/* ---- Where it came from ---- */
+.inv-from h2 {
+  margin-bottom: var(--s3);
+}
+.inv .crows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.inv .crows > li {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: var(--s2) 0;
+  min-height: 3rem;
+  box-sizing: border-box;
+  border-top: 1px solid var(--rule);
+}
+.inv .crows time {
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.inv .cs {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+.inv .cs b {
+  font-size: var(--step--1);
+  font-weight: 500;
+}
+.inv .cs small {
+  font-size: var(--step--2);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inv .ca {
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+.inv .crows .waiting .ca {
+  color: var(--muted);
+}
+
+/* ---- Phone: one column, in reading order ---- */
+@media (max-width: 759px) {
+  .inv {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--s5);
+  }
+  .inv .hero.big {
+    font-size: var(--step-3);
+    letter-spacing: -0.04em;
+  }
+  .inv-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .inv .seg {
+    align-self: flex-start;
+  }
+  .inv-chart {
+    height: 9rem;
+  }
+  .inv .frows > li {
+    grid-template-columns: var(--bs) minmax(0, 1fr) auto;
+    row-gap: 0;
+  }
+  .inv .frows > li > .brand,
+  .inv .fv {
+    grid-row: span 2;
+  }
+  .inv .risk {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}

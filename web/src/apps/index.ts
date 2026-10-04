@@ -11,11 +11,12 @@ import goal from "./goal.ts";
 import proposal from "./proposal.ts";
 import market from "./market.ts";
 import today from "./today.ts";
+import girlmath from "./girlmath.ts";
 
 export type Act = (action: string, body?: object) => Promise<void>;
 export type Renderer = (el: HTMLElement, app: App, act: Act) => void;
 
-export const renderers: Record<AppKind, Renderer> = { blackjack, funds, goal, proposal, market, today };
+export const renderers: Record<AppKind, Renderer> = { blackjack, funds, goal, proposal, market, today, girlmath };
 
 /** The wave 0 placeholder every kind starts from: its name, its state, and a ping to prove `act`. */
 export function placeholder(el: HTMLElement, app: App, act: Act) {

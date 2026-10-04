@@ -1,36 +1,38 @@
 /* The dashboard calendar (calendar.ts): month grid + heat map on the left, the day detail beside it.
    The detail is absolutely stacked inside a box the calendar sizes, so a long day never moves the page. */
 main.dash .days {
-  /* Sequential ramp, one hue: money mixed into the pane. Level 0 = a past day with no spend. */
+  /* Diverging budget map (DESIGN.md §5): under the day's budget climbs a --pos ramp by the share
+     left, over climbs a --neg ramp by how far over, on budget / no data is neutral. Capped at 70%
+     so the strongest cell never out-shouts today's number; day numbers stay --fg (AA on every step). */
   --h0: color-mix(in srgb, var(--fg) 5%, var(--pane));
-  --h1: color-mix(in srgb, var(--money) 14%, var(--pane));
-  --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
-  --h3: color-mix(in srgb, var(--money) 48%, var(--pane));
-  --h4: color-mix(in srgb, var(--money) 70%, var(--pane));
-  --h5: color-mix(in srgb, var(--money) 92%, var(--pane));
-  --thumb-c: var(--pane);
+  --hp1: color-mix(in srgb, var(--pos) 18%, var(--pane));
+  --hp2: color-mix(in srgb, var(--pos) 38%, var(--pane));
+  --hp3: color-mix(in srgb, var(--pos) 62%, var(--pane));
+  --hn1: color-mix(in srgb, var(--neg) 18%, var(--pane));
+  --hn2: color-mix(in srgb, var(--neg) 40%, var(--pane));
+  --hn3: color-mix(in srgb, var(--neg) 66%, var(--pane));
   display: grid;
   gap: var(--s3);
   min-width: 0;
 }
 :root[data-theme="dark"] main.dash .days {
   --h0: color-mix(in srgb, var(--fg) 6%, var(--pane));
-  --h1: color-mix(in srgb, var(--money) 18%, var(--pane));
-  --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
-  --h3: color-mix(in srgb, var(--money) 46%, var(--pane));
-  --h4: color-mix(in srgb, var(--money) 60%, var(--pane));
-  --h5: color-mix(in srgb, var(--money) 76%, var(--pane));
-  --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+  --hp1: color-mix(in srgb, var(--pos) 20%, var(--pane));
+  --hp2: color-mix(in srgb, var(--pos) 34%, var(--pane));
+  --hp3: color-mix(in srgb, var(--pos) 48%, var(--pane));
+  --hn1: color-mix(in srgb, var(--neg) 22%, var(--pane));
+  --hn2: color-mix(in srgb, var(--neg) 36%, var(--pane));
+  --hn3: color-mix(in srgb, var(--neg) 50%, var(--pane));
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) main.dash .days {
     --h0: color-mix(in srgb, var(--fg) 6%, var(--pane));
-    --h1: color-mix(in srgb, var(--money) 18%, var(--pane));
-    --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
-    --h3: color-mix(in srgb, var(--money) 46%, var(--pane));
-    --h4: color-mix(in srgb, var(--money) 60%, var(--pane));
-    --h5: color-mix(in srgb, var(--money) 76%, var(--pane));
-    --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+    --hp1: color-mix(in srgb, var(--pos) 20%, var(--pane));
+    --hp2: color-mix(in srgb, var(--pos) 34%, var(--pane));
+    --hp3: color-mix(in srgb, var(--pos) 48%, var(--pane));
+    --hn1: color-mix(in srgb, var(--neg) 22%, var(--pane));
+    --hn2: color-mix(in srgb, var(--neg) 36%, var(--pane));
+    --hn3: color-mix(in srgb, var(--neg) 50%, var(--pane));
   }
 }
 
@@ -88,64 +90,11 @@ main.dash .days .ib:focus-visible {
   outline-offset: 2px;
 }
 
-/* Segmented: the settings screen's control (a thumb slides under the chosen mode). */
-main.dash .days .seg {
-  position: relative;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  padding: 2px;
-  border-radius: 10px;
-  background: var(--bg-2);
-}
-main.dash .days .seg button {
-  all: unset;
-  position: relative;
-  z-index: 1;
-  height: 1.75rem;
-  padding: 0 0.75rem;
-  border-radius: 8px;
-  text-align: center;
-  font-size: var(--step--1);
-  font-weight: 500;
-  line-height: 1.75rem;
-  color: var(--muted);
-  cursor: pointer;
-  transition: color var(--quick);
-}
-main.dash .days .seg button[aria-checked="true"] {
-  color: var(--fg);
-  cursor: default;
-}
-@media (hover: hover) and (pointer: fine) {
-  main.dash .days .seg button:hover {
-    color: var(--fg);
-  }
-}
-main.dash .days .seg button:focus-visible {
-  outline: 2px solid var(--fg);
-  outline-offset: 0;
-}
-main.dash .days .seg .thumb {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc((100% - 4px) / var(--n));
-  border-radius: 8px;
-  background: var(--thumb-c);
-  box-shadow:
-    0 1px 2px color-mix(in srgb, #000 10%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
-  translate: calc(var(--i, 0) * 100%) 0;
-  transition: translate var(--move) var(--ease-in-out);
-}
-
 /* ---- Body: grid | detail ---- */
 main.dash .cal-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 18rem;
-  gap: var(--s4);
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--s5);
 }
 main.dash .days .wk,
 main.dash .days .cal {
@@ -167,8 +116,8 @@ main.dash .days .c {
   box-sizing: border-box;
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 3.25rem;
-  padding: 5px 6px;
+  height: 4.75rem;
+  padding: 6px 7px;
   border-radius: 8px;
   background: var(--h0);
   color: var(--fg);
@@ -182,11 +131,12 @@ main.dash .days .c.blank {
   background: none;
   cursor: default;
 }
-main.dash .days .c.lv1 { background: var(--h1); }
-main.dash .days .c.lv2 { background: var(--h2); }
-main.dash .days .c.lv3 { background: var(--h3); }
-main.dash .days .c.lv4 { background: var(--h4); color: var(--pane); }
-main.dash .days .c.lv5 { background: var(--h5); color: var(--pane); }
+main.dash .days .c.hp1 { background: var(--hp1); }
+main.dash .days .c.hp2 { background: var(--hp2); }
+main.dash .days .c.hp3 { background: var(--hp3); }
+main.dash .days .c.hn1 { background: var(--hn1); }
+main.dash .days .c.hn2 { background: var(--hn2); }
+main.dash .days .c.hn3 { background: var(--hn3); }
 main.dash .days .c.future {
   background: none;
   color: var(--muted);
@@ -217,71 +167,66 @@ main.dash .days .dn {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-main.dash .days .c .od,
-main.dash .days .legend .od {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--neg);
-}
-main.dash .days .c .od {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  box-shadow: 0 0 0 1.5px var(--pane);
-}
-/* Legend: the ramp with its two words and the over dot. The day panel carries the dollars. */
-main.dash .days .legend {
+/* Marks: at most two small tiles (bills, paydays, events) and "+n", quiet at the cell's foot. */
+main.dash .days .marks {
+  align-self: end;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--s1) var(--s3);
-  margin-top: var(--s2);
-  font-size: var(--step--2);
-  color: var(--muted);
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 }
-main.dash .days .ramp {
+main.dash .days .marks .brand {
+  --bs: 1.125rem;
+}
+main.dash .days .marks .brand.plain {
+  background: var(--pane);
+  color: var(--fg);
+}
+main.dash .days .marks .brand.plain > svg {
+  width: 70%;
+  height: 70%;
+}
+main.dash .days .marks small {
+  margin-left: 2px;
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Legend: Over [red ramp] [neutral] [green ramp] Under. The day panel carries the dollars. */
+main.dash .days .legend {
   display: flex;
   align-items: center;
   gap: 3px;
+  margin-top: var(--s3);
+  font-size: var(--step--2);
+  color: var(--muted);
 }
-main.dash .days .ramp span:first-child {
-  margin-right: var(--s1);
-}
-main.dash .days .ramp span:last-child {
-  margin-left: var(--s1);
-}
-main.dash .days .ramp i {
-  width: 0.75rem;
-  height: 0.75rem;
+main.dash .days .legend span:first-child { margin-right: var(--s1); }
+main.dash .days .legend span:last-child { margin-left: var(--s1); }
+main.dash .days .legend i {
+  width: 0.875rem;
+  height: 0.875rem;
   border-radius: 3px;
 }
-main.dash .days .ramp .lv0 { background: var(--h0); }
-main.dash .days .ramp .lv1 { background: var(--h1); }
-main.dash .days .ramp .lv2 { background: var(--h2); }
-main.dash .days .ramp .lv3 { background: var(--h3); }
-main.dash .days .ramp .lv4 { background: var(--h4); }
-main.dash .days .ramp .lv5 { background: var(--h5); }
-main.dash .days .key-over {
-  display: flex;
-  align-items: center;
-  gap: var(--s1);
-  margin-left: auto;
-  transition: opacity var(--quick);
-}
-main.dash .days .key-over.off {
-  opacity: 0;
-}
+main.dash .days .legend .h0 { background: var(--h0); margin: 0 4px; }
+main.dash .days .legend .hp1 { background: var(--hp1); }
+main.dash .days .legend .hp2 { background: var(--hp2); }
+main.dash .days .legend .hp3 { background: var(--hp3); }
+main.dash .days .legend .hn1 { background: var(--hn1); }
+main.dash .days .legend .hn2 { background: var(--hn2); }
+main.dash .days .legend .hn3 { background: var(--hn3); }
 
 /* ---- Detail: the month, or a day. Panes stack in a box the calendar sizes. ---- */
 main.dash .days .dd {
   position: relative;
   min-height: 0;
-  border-left: 1px solid var(--rule);
 }
 main.dash .days .dd > .pane {
   position: absolute;
-  inset: 0 0 0 var(--s4);
+  inset: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -432,15 +377,13 @@ main.dash .days .pane .empty {
     padding: 4px;
   }
   main.dash .days .dd {
-    height: 24rem;
-    border-left: 0;
-    border-top: 1px solid var(--rule);
+    height: 26rem;
   }
   main.dash .days .dd > .pane {
     inset: var(--s3) 0 0 0;
   }
-  main.dash .days .key-over {
-    margin-left: 0;
+  main.dash .days .marks .brand {
+    --bs: 0.875rem;
   }
 }
 main.dash .days .c.blank .dn {
@@ -468,4 +411,60 @@ main.dash .days .lst .go:focus-visible {
     text-decoration-color: var(--rule);
     text-underline-offset: 3px;
   }
+}
+
+/* ---- Recent activity: in vs out, one split bar, then the week by day ---- */
+main.dash .days .io {
+  display: flex;
+  gap: var(--s5);
+  margin-top: var(--s1);
+}
+main.dash .days .io p {
+  display: grid;
+  gap: 2px;
+}
+main.dash .days .io small {
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .days .io-n {
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .split {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  margin-top: var(--s2);
+}
+main.dash .days .split i {
+  flex-basis: 0;
+  min-width: 2px;
+  border-radius: 3px;
+}
+main.dash .days .split .s-in { background: var(--pos); }
+main.dash .days .split .s-out { background: var(--neg); }
+main.dash .days .pane .big.pos { color: var(--pos); }
+main.dash .days .pane .big.neg { color: var(--neg); }
+main.dash .days .go-day {
+  all: unset;
+  cursor: pointer;
+  border-radius: 4px;
+}
+main.dash .days .go-day:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .days .go-day:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 3px;
+  }
+}
+main.dash .days .c[hidden] {
+  display: none;
 }

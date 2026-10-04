@@ -3,6 +3,7 @@ import { state, reset, type Thread, type Message } from "./state.ts";
 import { now } from "./clock.ts";
 import * as money from "./money.ts";
 import { summary } from "./summary.ts";
+import { investments } from "./investments.ts";
 import { calendar } from "./calendar.ts";
 import * as accounts from "./accounts.ts";
 import { settings, update as updateSettings } from "./settings.ts";
@@ -153,6 +154,7 @@ const server = Bun.serve({
     },
 
     "/api/summary": () => json(summary()),
+    "/api/investments": () => json(investments()),
     "/api/calendar": (req) => {
       const m = new URL(req.url).searchParams.get("month");
       return json(calendar(state, now(), m && /^\d{4}-\d{2}$/.test(m) ? m : undefined));

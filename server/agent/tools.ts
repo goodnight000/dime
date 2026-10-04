@@ -112,6 +112,20 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       },
     ),
     tool(
+      "show_girl_math",
+      "Send the girl math card: the item and price, skip it → when the goal lands vs buy it → how much later, and the hours of work. Use it when he asks for girl math (\"girl math\", \"girl math this $90 dinner\") or what a price does to his goal, and when a price is over today's number. The card carries the numbers: write one short line before it, don't repeat its dates. Bare \"girl math\" with no price: omit amount and it uses his latest purchase.",
+      Type.Object({
+        item: Type.Optional(Type.String({ description: "Short name, e.g. 'dinner', 'top'" })),
+        amount: Type.Optional(Type.Number({ description: "Price in dollars" })),
+      }),
+      ({ item, amount }) => {
+        const app = open("girlmath", { item, amount });
+        apps.push(app);
+        const s = app.state;
+        return { sent: true, item: s.item, amount: s.amount, goal: s.goal.name, goal_later: s.later, goal_date_if_skipped: date(new Date(s.skip.date)), goal_date_if_bought: date(new Date(s.buy.date)), hours_of_work: s.hours, today_left: money.today(state, now()) };
+      },
+    ),
+    tool(
       "search_transactions",
       "His transactions, filtered. Use for any spending question: a merchant (\"Blue Bottle\"), a category (coffee, food, groceries, shopping, transport, fun, bills), a period, a minimum amount. Returns the total, count, top categories and merchants, the biggest, and the latest purchases.",
       Type.Object({
@@ -253,7 +267,7 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       ({ item, price }) => {
         const left = money.today(state, now());
         if (!(price > 0)) throw new Error("price must be positive");
-        if (price > left) throw new Error(`Can't bet $${price}: only $${left} left today. Tell him, with girl_math.`);
+        if (price > left) throw new Error(`Can't bet $${price}: only $${left} left today. Tell him in one line and send show_girl_math.`);
         if (!state.user.blackjack) throw new Error("Impulse blackjack is off in his Settings. No card: just tell him whether it fits.");
         apps.push(open("blackjack", { item, amount: price }));
         return { sent: true, item, price, today_left: left };

@@ -276,3 +276,19 @@ main.settings .still .seg button {
     white-space: normal;
   }
 }
+
+/* Friction pass: fund names (not tickers) are longer; keep them on one line in five equal columns. */
+main.settings .seg[data-k="fund"] {
+  min-width: calc(var(--n) * 5rem);
+}
+main.settings .seg[data-k="fund"] button {
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  main.settings .seg[data-k="fund"] {
+    min-width: 0;
+  }
+  main.settings .seg[data-k="fund"] button {
+    padding: 0 0.25rem;
+  }
+}

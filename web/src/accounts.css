@@ -1,19 +1,9 @@
-/* Accounts (DESIGN.md §6): services left 1.65fr, Recent right 1fr; on a phone they stack. Every
-   rule is scoped to main.accounts. */
-main.accounts .acct-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 1fr);
-  gap: var(--s5);
-  align-items: start;
-}
-main.accounts .acct-split h2 {
-  font-size: var(--step-0);
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 0 0 var(--s2); /* flush with the h1 and the rows, as on the dashboard */
-}
+/* Accounts (DESIGN.md §6): only connections, one focused column of dividered rows, held at the
+   wide pages' left edge so the h1 lines up with every other page. Every rule is scoped to
+   main.accounts. */
 main.accounts .rows {
   margin: 0;
+  max-width: 40rem;
 }
 
 /* A service: glyph | name over subtitle | action (fixed width, so no state moves the row). */
@@ -140,43 +130,7 @@ main.accounts .word.ok {
   color: var(--fg);
 }
 
-/* Recent: five dividered rows, or the same height held by the empty line. */
-main.accounts .txns {
-  min-height: calc(5 * 3.4rem + 4px);
-  display: grid;
-  align-content: start;
-}
-main.accounts .row.tx {
-  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  min-height: 3.4rem;
-  padding: 0.5rem 1rem;
-}
-main.accounts .tx .t b {
-  font-size: var(--step--1);
-  font-weight: 500;
-}
-main.accounts .tx .t small {
-  font-size: var(--step--2);
-}
-main.accounts .tx .v {
-  font-size: var(--step--1);
-}
-main.accounts .txns > .empty {
-  align-self: stretch;
-  display: grid;
-  place-items: center;
-  min-height: calc(5 * 3.4rem);
-  padding: 0 var(--s3);
-}
-main.accounts .txns > li.in {
-  animation: rise var(--move) both;
-}
-
 @media (max-width: 759px) {
-  main.accounts .acct-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
   main.accounts .svc {
     grid-template-columns: 2.5rem minmax(0, 1fr) 6.5rem;
   }

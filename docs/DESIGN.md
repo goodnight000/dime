@@ -10,6 +10,17 @@ Standing rules, in order of precedence when they collide:
 4. **No ornament.** No gradients-as-decoration, glows, glass, shimmer skeletons, emoji headers, pill buttons, letter-spaced uppercase labels, hint text. Lists are dividered rows in one container.
 5. **Reduced motion = finished state, still.** Forth's global `prefers-reduced-motion` rule stays. JS sequences check `reduced()` (§1.6) and skip their timers too.
 
+Friction principles (Charles, 2026-10-04). Check every surface against these:
+
+- **Hick's law: reduce choices.** Fewer options per moment; one obvious next action. Secondary choices hide until asked for.
+- **Fitts's law: make actions easy.** The primary action is big, close to where attention already is, and labeled with its verb ("Call Comcast", not "Approve").
+- **Jakob's law: familiar patterns.** Messages grammar for chat, standard calendar, standard settings rows. Don't invent a control where a known one exists.
+- **Miller's law: chunk information.** Group numbers and facts into small sets; format long numbers ($1,339.72, ••4821); no walls of figures.
+- **Peak-end rule: design the peak and the end.** Blackjack resolution, a market settling, a goal hitting 100% and the last beat of every flow get the most care.
+- **Proximity: group related things.** Things that belong together sit together; separation comes from spacing, not lines.
+- **Von Restorff: highlight what matters.** One standout per view (today's number, the active goal, the primary button); everything else recedes.
+- **Two failure modes to avoid, equally:** overcrowded (users don't know where to look) and ambiguous (users don't know what something means). Cut until it's calm, but never cut the label that makes a number understandable.
+
 ---
 
 ## 1. Global
@@ -384,8 +395,8 @@ club    M12 3a4 4 0 0 0-3.1 6.5A4 4 0 1 0 11 16.4V18l-1.5 3.5h5L13 18v-1.6a4 4 0
 | Win | Won. Sneakers are on the house. | $280 doesn't touch today. |
 | Blackjack | Blackjack. Sneakers are on the house. | $280 doesn't touch today. |
 | Dime busts | Dime busts. Sneakers are on the house. | $280 doesn't touch today. |
-| Lose | Lost. $280 → S&P 500 | Invested in VOO. Ledger updated. |
-| Bust | Bust. $280 → S&P 500 | Invested in VOO. Ledger updated. |
+| Lose | Lost. $280 → S&P 500 | Still your money, now invested. (Cash: "now in savings.") |
+| Bust | Bust. $280 → S&P 500 | Still your money, now invested. (Cash: "now in savings.") |
 | Lose, no fund yet | Lost. $280 is waiting for a fund. | Pick one below. (a `funds` card follows) |
 | Push | Push. Dealing again. | — |
 

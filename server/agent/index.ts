@@ -108,6 +108,9 @@ function cut(s: string): [string, string] | null {
 /** Up to 3 bubbles from the reply text, split on blank lines; extras become lines of the last one.
  *  While there's room for another bubble, one over CAP splits at a sentence end into the next. */
 export function split(text: string): string[] {
+  // Chat turns have no template to fall back to: drop any word in a non-Latin script (garbled output).
+  text = text.replace(/\S*[^\s\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}\p{Extended_Pictographic}\p{Emoji_Component}]\S*/gu, (w) =>
+    /\p{Extended_Pictographic}/u.test(w) && !/[\p{L}]/u.test(w.replace(/\p{Script=Latin}/gu, "")) ? w : "").replace(/ {2,}/g, " ");
   const parts = plain(text).split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
   const out = parts.length > 3 ? [...parts.slice(0, 2), parts.slice(2).join("\n")] : parts;
   for (let i = 0; i < out.length && out.length < 3; ) {

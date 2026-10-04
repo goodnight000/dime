@@ -7,12 +7,13 @@ import * as goal from "./goal.ts";
 import * as proposal from "./proposal.ts";
 import * as market from "./market.ts";
 import * as today from "./today.ts";
+import * as girlmath from "./girlmath.ts";
 
 type Kind = {
   create: (input?: any) => App;
   actions: Record<string, (app: App, body: any) => void | Promise<void>>;
 };
-export const kinds: Record<AppKind, Kind> = { blackjack, funds, goal, proposal, market, today };
+export const kinds: Record<AppKind, Kind> = { blackjack, funds, goal, proposal, market, today, girlmath };
 
 export function open(kind: AppKind, input?: any): App {
   const app = kinds[kind].create(input);

@@ -2,22 +2,19 @@ import "./accounts.css";
 import { api } from "./api.ts";
 import { icon } from "./icons.ts";
 import { brand } from "./brands.ts";
-import { flow } from "./num.ts";
 import { T, reduced, later, swap } from "./motion.ts";
 import type { Screen } from "./main.ts";
 
-// Accounts (DESIGN.md §6): services left (one .rows container), Recent on the right. Connecting is
-// in place: the pill becomes "Connecting", a ring draws round the glyph in three ticks while the
-// subtitle narrates, the ring turns green, a check lands, the row reads Connected. Then Chase's
-// transactions enter the rail. State is the server's (server/accounts.ts); polled every 2s.
+// Accounts (DESIGN.md §6): only where accounts get connected, one column of dividered rows.
+// Connecting is in place: the pill becomes "Connecting", a ring draws round the glyph in three
+// ticks while the subtitle narrates, the ring turns green, a check lands, the row reads Connected.
+// State is the server's (server/accounts.ts); polled every 2s.
 
 type Account = { id: string; name: string; kind: string; glyph: string; connected: boolean; subtitle: string };
-type Txn = { id: string; at: string; merchant: string; amount: number; kind?: string };
-type Data = { accounts: Account[]; recent: Txn[] };
+type Data = { accounts: Account[] };
 
 const C = 2 * Math.PI * 18; // the ring's circumference (r = 18 in a 40-unit box)
 const TICK = 800;
-const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 /** "Checking ••4821 · Savings ••0937" wraps only before a "·", which travels with what follows. */
 const keep = (t: string) => t.split(" · ").map((x) => x.replace(/ /g, "\u00a0")).join(" ·\u00a0");
 const RING = `<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" /></svg>`;
@@ -37,20 +34,11 @@ const accounts: Screen = (main, _session, current) => {
   main.classList.add("accounts", "wide");
   main.innerHTML = `
     <header class="page-head"><h1>Accounts</h1></header>
-    <div class="acct-split">
-      <section aria-labelledby="svc-h"><h2 id="svc-h">Connections</h2><ul class="rows svcs"></ul></section>
-      <aside class="recent" aria-labelledby="recent-h">
-        <h2 id="recent-h">Recent</h2>
-        <ul class="rows txns" aria-live="polite"></ul>
-      </aside>
-    </div>`;
+    <ul class="rows svcs" aria-label="Connections"></ul>`;
   const svcs = main.querySelector<HTMLElement>(".svcs")!;
-  const txns = main.querySelector<HTMLElement>(".txns")!;
   const alive = () => current() && main.isConnected;
   const busy = new Set<string>(); // rows mid-connect: the poll leaves them alone
   const rows = new Map<string, HTMLElement>();
-  let shown: string[] | null = null; // txn ids in the rail, null before the first draw
-  let reveal = false; // the next rail draw is Chase arriving: rows enter in turn
 
   function row(a: Account): HTMLElement {
     const li = document.createElement("li");
@@ -146,46 +134,6 @@ const accounts: Screen = (main, _session, current) => {
     say(sub, keep(fresh.subtitle));
     swap(act, act.querySelector(".ok")!);
     busy.delete(a.id);
-    if (a.id === "chase" && data) {
-      await later(T.quick + T.press);
-      if (!alive()) return;
-      reveal = true;
-      drawRecent(data);
-    }
-  }
-
-  function drawRecent(d: Data) {
-    const chase = d.accounts.find((a) => a.id === "chase");
-    if (busy.has("chase")) return; // its rows enter when the connect finishes
-    const ids = d.recent.map((t) => t.id);
-    if (shown && ids.join() === shown.join() && txns.querySelector(".empty") === null === Boolean(chase?.connected)) return;
-    const before = new Set(shown ?? []);
-    const animate = shown !== null && !reduced();
-    shown = ids;
-    if (!chase?.connected || !d.recent.length) {
-      txns.innerHTML = `<li class="empty">Connect Chase to see transactions.</li>`;
-      return;
-    }
-    const cents = d.recent.some((t) => !Number.isInteger(t.amount));
-    txns.replaceChildren(
-      ...d.recent.map((t, i) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<div class="row tx">${brand(t.merchant)}<span class="t"><b></b><small></small></span><span class="v"></span></div>`;
-        li.querySelector("b")!.textContent = t.merchant;
-        li.querySelector("small")!.textContent = short.format(new Date(t.at));
-        const v = li.querySelector<HTMLElement>(".v")!;
-        const f = flow(t.amount, t.kind, cents);
-        v.textContent = f.text;
-        v.setAttribute("aria-label", f.label);
-        if (f.cls) v.classList.add(f.cls);
-        if (animate && (reveal || !before.has(t.id))) {
-          li.classList.add("in");
-          li.style.animationDelay = `${reveal ? i * 40 : 0}ms`;
-        }
-        return li;
-      }),
-    );
-    reveal = false;
   }
 
   async function load(): Promise<Data | null> {
@@ -208,7 +156,6 @@ const accounts: Screen = (main, _session, current) => {
           } else rest(li, a);
         }
       }
-      drawRecent(d);
       return d;
     } catch {
       return null;
