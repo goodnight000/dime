@@ -244,14 +244,11 @@ const BEATS = [
     await wait(2800);
     await glide(".days .week", 900);
     await wait(2400);
-    // an over-budget day from the heat map, then today
+    await click(".cal .c.now[data-date]", 3000); // today: the sneakers, the matcha
+    // last month's full heat map, then its worst day ("$141 over" on Sep 12)
+    await click('.cal-head .ib[data-step="-1"]', 2200);
     const hot = page.locator(".cal .c.hn3[data-date], .cal .c.hn2[data-date]").first();
-    if (await hot.count()) {
-      await glide(".cal", 700);
-      await wait(600);
-      await click(hot, 2800);
-    }
-    await click(".cal .c.now[data-date]", 3400);
+    if (await hot.count()) await click(hot, 3600);
   }],
   ["Investments", async () => {
     await nav("/dashboard");
