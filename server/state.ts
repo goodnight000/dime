@@ -2,6 +2,7 @@
 // then a restart (or POST /api/demo/reset) puts the demo back at the start of Oct 4.
 import { seedHistory } from "./summary.ts"; // dashboard history: earlier weeks, sweeps, ledger
 import { history, balances, SUBSCRIPTIONS, PAYCHECK, SAVINGS_SWEEP } from "./history.ts"; // Jul 6 → Sep 30 bank feed
+import HISTORY from "./history.json"; // three weeks of texts written by the live agent (server/agent/make-history.ts)
 
 export type Thread = "dime" | "group";
 export type Friend = "Penny" | "Maya" | "Sam";
@@ -41,7 +42,8 @@ export type State = {
   };
   month: { income: number; bills: number; invest: number };
   txns: Txn[];
-  goal: { name: string; price: number; saved: number; emoji: string };
+  /** Savings goals in priority order: sweeps fill the first unfinished one, overflow rolls to the next (money.ts). */
+  goals: Goal[];
   ledger: { fund: FundId; amount: number; at: string; reason: string }[];
   sweeps: { at: string; amount: number }[];
   bonus: { at: string; amount: number }[]; // market winnings, added to today
@@ -63,6 +65,9 @@ export type State = {
   /** End-of-day account balances, one point per account per day, oldest first. */
   balances: Balance[];
 };
+/** `store` = where it's ordered from (a thing he buys); absent for trips and funds, which are just Done when full.
+ *  `done` = ordered (a store goal, paid from what it saved). */
+export type Goal = { id: string; name: string; price: number; saved: number; emoji: string; store?: string; createdAt: string; done?: { at: string } };
 export type Subscription = { merchant: string; price: number; cadence: "monthly" | "yearly"; lastUsed: string; trialEnds?: string };
 export type Balance = { account: "checking" | "savings"; at: string; balance: number };
 
@@ -76,6 +81,15 @@ function at(daysAgo: number, h: number, m = 0): string {
   return d.toISOString();
 }
 
+/** The chat history's shape (times are ms from the demo day's midnight). */
+const CHAT = HISTORY as unknown as {
+  messages: (Omit<Message, "id" | "created_at"> & { at: number })[];
+  apps: Record<string, App>;
+  fund: FundId | null;
+  ledger: { fund: FundId; amount: number; at: number; reason: string }[];
+  txns: (Omit<Txn, "at"> & { at: number })[];
+};
+
 function seed(): State {
   const spend = (daysAgo: number, h: number, merchant: string, amount: number, category: string): Txn => ({
     id: id(), at: at(daysAgo, h), merchant, amount, category, kind: "spend",
@@ -87,6 +101,7 @@ function seed(): State {
   // leaves a pool of $8,710: $311 a day for the 28 days left.
   const txns: Txn[] = [
     ...history(),
+    ...CHAT.txns.map((t) => ({ ...t, at: since(t.at) })), // the record he won at blackjack
     bill(3, "Rent", 1450),
     bill(3, "Comcast", 70), // the $47 promo ended: history has Aug and Sep at $47
     { id: id(), at: at(2, 5), merchant: "Payroll", amount: PAYCHECK, category: "income", kind: "income" },
@@ -108,16 +123,19 @@ function seed(): State {
     [7, 62], [6, 48], [5, 71], [4, 39], [2, 83], [1, 95],
   ].map(([daysAgo, amount]) => ({ at: at(daysAgo, 23, 59), amount }));
   return {
-    user: { name: "Charles", tone: "savage", fund: null, hourly: 32, morning: "08:00", blackjack: true, tips: true },
+    user: { name: "Charles", tone: "savage", fund: CHAT.fund ?? null, hourly: 32, morning: "08:00", blackjack: true, tips: true },
     month: { income: 10850, bills: 1700, invest: 0 },
     txns,
-    goal: { name: "iPhone 17 Pro", price: 1099, saved: 650, emoji: "📱" },
-    ledger: [],
+    goals: [
+      { id: "iphone", name: "iPhone 17 Pro", price: 1099, saved: 650, emoji: "📱", store: "Apple", createdAt: at(40, 12) },
+      { id: "tokyo", name: "Tokyo trip", price: 2400, saved: 0, emoji: "🗼", createdAt: at(12, 21) },
+      { id: "emergency", name: "Emergency fund", price: 5000, saved: 1800, emoji: "🛟", createdAt: at(80, 9) },
+    ],
+    ledger: CHAT.ledger.map((l) => ({ ...l, at: since(l.at) })), // the blackjack loss in the chat history
     sweeps,
     bonus: [],
     messages: [
-      dime(at(1, 8), "morning ☀️ $311 today"),
-      dime(at(1, 23, 59), "$95 left. moved to the iPhone 📱 59%"),
+      ...[...CHAT.messages].sort((a, b) => a.at - b.at).map(({ at: ms, ...m }) => ({ ...m, id: id(), created_at: since(ms) })),
       friend("Penny", at(1, 20), "who's down for thai tonight"),
       friend("Maya", at(1, 20, 2), "me but cheap thai"),
       friend("Sam", at(1, 20, 5), "I'm on a no-spend streak don't tempt me"),
@@ -126,7 +144,7 @@ function seed(): State {
       friend("Penny", at(0, 9, 12), "new day new me. no doordash today"),
       friend("Sam", at(0, 9, 15), "screenshotting this"),
     ],
-    apps: {},
+    apps: structuredClone(CHAT.apps),
     friends: [
       { name: "Penny", streak: 1 },
       { name: "Maya", streak: 4 },
@@ -175,9 +193,8 @@ function openAt(txns: Txn[], low: number) {
   return balances(past, Math.round(low - lowFrom0), 16400);
 }
 
-function dime(created_at: string, body: string): Message {
-  return { id: id(), thread: "dime", direction: "out", body, created_at };
-}
+/** history.json times are ms from the demo day's midnight. */
+const since = (ms: number) => new Date(new Date(at(0, 0)).getTime() + ms).toISOString();
 function friend(sender: Friend, created_at: string, body: string): Message {
   return { id: id(), thread: "group", direction: "out", sender, body, created_at };
 }

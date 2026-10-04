@@ -102,6 +102,7 @@ main.settings .field {
   font-size: var(--step-0);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  color: var(--fg);
   cursor: text;
   transition: background-color var(--quick);
 }

@@ -4,11 +4,12 @@ import { roll, usd, signed } from "./num.ts";
 import { T, reduced, later } from "./motion.ts";
 import type { Screen } from "./main.ts";
 import { brand, categoryIcon } from "./brands.ts";
+import { ring, face, level } from "./ring.ts";
+import { mountCalendar } from "./calendar.ts";
 
 // The dashboard (DESIGN.md §5): today's rail on the left, the money's work on the right. Every
 // figure is from GET /api/summary (server/summary.ts), polled every 2s; changed numbers roll.
 
-type Day = { date: string; day: number; kind: "under" | "over" | "none" | "future" | "today"; so_far: "under" | "over" | null };
 type Summary = {
   now: string;
   month_name: string;
@@ -19,6 +20,7 @@ type Summary = {
   days_left: number;
   to_goal: number;
   goal: { name: string; price: number; saved: number; pct: number; eta_date: string };
+  goals: Goal[];
   invested: {
     total: number;
     month_delta: number;
@@ -27,11 +29,9 @@ type Summary = {
     waiting: number;
   };
   spending: { category: string; label: string; amount: number }[];
-  days: Day[];
 };
 
 const FUND_COLOR: Record<string, string> = { VOO: "var(--fg)", QQQ: "var(--blue)", SOXX: "var(--money)", DRAM: "var(--amber)", CASH: "var(--muted)" };
-const KIND_WORD = { under: "under budget", over: "over budget", none: "no spend", future: "", today: "today" };
 const local = (ymd: string) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -50,7 +50,9 @@ let drawnIn = false;
 let cached: Summary | null = null;
 export const prime = (s: unknown) => void (cached = s as Summary);
 
-const WAVE = `<svg class="wave" viewBox="0 0 120 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3 Q15 0 30 3 T60 3 T90 3 T120 3 V6 H0Z"/></svg>`;
+type Goal = { id: string; name: string; emoji: string; store?: string; price: number; saved: number; pct: number; status: "active" | "queued" | "ready" | "ordered" | "done"; eta_date: string };
+/** What a goal's date line says. */
+const when = (g: Goal) => (g.status === "ready" ? "Ready to order" : g.status === "done" ? "Done" : `Saved by ${short.format(local(g.eta_date))}`);
 
 const dashboard: Screen = (main, _session, current) => {
   main.classList.add("dash");
@@ -71,14 +73,15 @@ const dashboard: Screen = (main, _session, current) => {
             <div><dt>To goal</dt><dd><span class="num" data-k="togo">—</span></dd></div>
           </dl>
         </section>
-        <section class="goal" aria-label="Goal">
-          <div class="glass" style="--p:0"><div class="well"><div class="liquid">${WAVE}</div></div></div>
+        <section class="goal" aria-label="Goals">
+          ${ring(null, 0)}
           <div class="gt">
             <b class="gname">&nbsp;</b>
             <span class="num hero gpct" data-k="gpct" style="--roll-dur: var(--t-data); --roll-ease: var(--ease-in-out)">—</span>
             <small><span class="num" data-k="saved" style="--roll-dur: var(--t-data); --roll-ease: var(--ease-in-out)">—</span> of <span class="num" data-k="price">—</span></small>
             <span class="eta">&nbsp;</span>
           </div>
+          <ol class="gq" aria-label="Up next"></ol>
         </section>
         <section class="recent" aria-labelledby="rc-h">
           <h2 id="rc-h">Recent</h2>
@@ -86,6 +89,7 @@ const dashboard: Screen = (main, _session, current) => {
         </section>
       </aside>
       <div class="work">
+        <section class="days" aria-labelledby="days-h"></section>
         <section class="invested" aria-labelledby="inv-h">
           <header>
             <div class="ih">
@@ -114,14 +118,6 @@ const dashboard: Screen = (main, _session, current) => {
             <h2 id="sp-h">Spending <small class="range"></small></h2>
             <ul class="bars"></ul>
           </section>
-          <section class="days" aria-labelledby="days-h">
-            <h2 id="days-h">Days</h2>
-            <div class="wk" aria-hidden="true">${["S", "M", "T", "W", "T", "F", "S"].map((d) => `<span>${d}</span>`).join("")}</div>
-            <div class="cal">${"<span class='c future'></span>".repeat(35)}</div>
-            <ul class="legend">
-              <li><i class="under"></i>Under</li><li><i class="over"></i>Over</li><li><i class="none"></i>No spend</li>
-            </ul>
-          </section>
         </div>
       </div>
     </div>`;
@@ -138,8 +134,11 @@ const dashboard: Screen = (main, _session, current) => {
   const hair = $(".hair");
   const hoverDot = $(".hover-dot");
   const tip = $(".tip");
-  const glass = $(".glass");
+  const hero = $(".goal > .ring");
+  let heroId = "";
+  let queueKey = "";
   const board = $(".board");
+  const cal = mountCalendar($(".days"));
 
   let last: Summary | null = null;
   let pts: { x: number; y: number }[] = [];
@@ -259,23 +258,10 @@ const dashboard: Screen = (main, _session, current) => {
     });
   }
 
-  function drawDays(s: Summary) {
-    const cells = $(".cal").children;
-    const month = s.days.find((d) => d.kind === "today")?.date.slice(0, 7);
-    s.days.forEach((d, i) => {
-      const c = cells[i] as HTMLElement;
-      const fill = d.kind === "today" ? (d.so_far ?? "") : d.kind;
-      c.className = `c ${fill}${d.kind === "today" ? " now" : ""}${month && d.date.slice(0, 7) < month ? " prev" : ""}`;
-      c.textContent = d.day === 1 ? short.format(local(d.date)) : String(d.day); // "Oct 1": where the month turns
-      const words = d.kind === "today" ? (d.so_far ? `today, ${KIND_WORD[d.so_far]} so far` : "today") : KIND_WORD[d.kind];
-      c.setAttribute("aria-label", `${short.format(local(d.date))}${words ? `, ${words}` : ""}`);
-      c.title = c.getAttribute("aria-label")!;
-    });
-  }
 
   function draw(s: Summary) {
     const first = !last;
-    const prevPct = last?.goal.pct;
+    const prevPct = last ? (last.goals.find((g) => g.id === heroId)?.pct ?? -1) : -1;
     last = s;
     // The page is today: the rail is today's money, the chart and calendar roll back from it, and
     // Spending (the only month-to-date figure) carries its own range.
@@ -294,21 +280,34 @@ const dashboard: Screen = (main, _session, current) => {
     set("pool", usd(s.pool));
     set("days", String(s.days_left));
     set("togo", usd(s.to_goal));
+    // The stack: the first goal still in play large (the one saving now, or a full one waiting to be
+    // ordered), the rest as mini rings in priority order. Ordered and finished goals leave it.
+    const live = s.goals.filter((g) => g.status !== "ordered" && g.status !== "done");
+    const top = live[0] ?? s.goals.at(-1)!;
     const goal = () => {
-      $(".gname").textContent = s.goal.name;
-      set("gpct", `${s.goal.pct}%`);
-      set("saved", usd(s.goal.saved));
-      set("price", usd(s.goal.price));
-      $(".eta").textContent = s.goal.pct >= 100 ? "Ready to order" : `Saved by ${short.format(local(s.goal.eta_date))}`;
-      glass.style.setProperty("--p", String(s.goal.pct / 100));
-      glass.classList.toggle("empty", s.goal.saved <= 0); // no crest on an empty glass (after ordering)
-      if (!first && prevPct !== s.goal.pct && !reduced()) {
-        glass.classList.remove("filling");
-        void glass.offsetWidth;
-        glass.classList.add("filling");
+      const same = top.id === heroId;
+      $(".gname").textContent = top.name;
+      set("gpct", `${top.pct}%`);
+      set("saved", usd(top.saved));
+      set("price", usd(top.price));
+      $(".eta").textContent = when(top);
+      if (!same) hero.querySelector(".face")!.innerHTML = face(top);
+      // A new goal on top is a new subject, not a fill: it appears at its level, still.
+      const arc = hero.querySelector<SVGElement>(".arc")!;
+      if (!same) arc.style.transition = "none";
+      level(hero, top.saved <= 0 ? 0 : top.pct / 100);
+      if (!same) void hero.getBoundingClientRect(), (arc.style.transition = "");
+      heroId = top.id;
+      const rest = live.slice(1);
+      const key = JSON.stringify(rest.map((g) => [g.id, g.name, g.emoji, g.pct, g.saved, g.price, g.status, g.eta_date]));
+      if (key !== queueKey) {
+        queueKey = key;
+        $(".gq").innerHTML = rest
+          .map((g, i) => `<li><span class="gn">${i + 2}</span>${ring(g, g.saved <= 0 ? 0 : g.pct / 100)}<span class="gqt"><b>${esc(g.name)}</b><small>${usd(g.saved)} of ${usd(g.price)}</small></span><small class="gd${g.status === "ready" ? " ready" : ""}">${when(g).replace("Saved by ", "")}</small></li>`)
+          .join("");
       }
     };
-    if (!first && railMoved && prevPct !== s.goal.pct) void later(T.slow).then(goal);
+    if (!first && railMoved && prevPct !== top.pct && top.id === heroId) void later(T.slow).then(goal);
     else goal();
     set("total", usd(s.invested.total, true));
     // A blackjack loss before a fund is picked: shown, never counted in the total.
@@ -324,7 +323,6 @@ const dashboard: Screen = (main, _session, current) => {
     drawChart(s);
     drawFunds(s);
     drawSpending(s);
-    drawDays(s);
     if (first) drawIn();
   }
 
@@ -368,6 +366,7 @@ const dashboard: Screen = (main, _session, current) => {
       if (!alive()) return ro.disconnect();
       cached = s;
       draw(s);
+      void cal.tick();
       if (acct) drawRecent(acct.recent, s.now);
       // First paint is still (§ rule 3): transitions stay off until the first data is laid out.
       if (board.classList.contains("still")) void board.offsetWidth, board.classList.remove("still");

@@ -5,6 +5,7 @@ import "./funds.css";
 import type { Renderer } from "./index.ts";
 import { T, swap, later } from "../motion.ts";
 import { usd } from "../num.ts";
+import { brand } from "../brands.ts";
 
 type Fund = {
   id: string; ticker: string; name: string; risk: 1 | 2 | 3 | 4;
@@ -42,6 +43,7 @@ const funds: Renderer = (el, app, act) => {
       .map(
         (f) => `<div class="fp-row" role="radio" data-id="${f.id}" aria-checked="false" tabindex="-1">
           <span class="fp-radio" aria-hidden="true"><i></i></span>
+          ${brand(f.ticker)}
           <span class="fp-text"><span class="fp-name"><b>${esc(f.name)}</b>${
             f.ticker === f.name ? "" : ` <small>${esc(f.ticker)}</small>`
           }</span><span class="fp-blurb">${esc(f.blurb)}</span></span>

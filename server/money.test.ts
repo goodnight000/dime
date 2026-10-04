@@ -23,23 +23,23 @@ test("a $7 swipe drops today by 7, and a covered one does not", () => {
 
 test("midnight sweeps the leftover to the goal without inflating tomorrow", () => {
   const left = money.today(state, now());
-  const saved = state.goal.saved;
+  const saved = state.goals[0].saved;
   const days = money.daysLeft(now());
   const poolBefore = money.pool(state, money.dayStart(now()));
   midnight();
-  expect(state.goal.saved).toBe(saved + left);
+  expect(state.goals[0].saved).toBe(saved + left);
   // Tomorrow is the old pool minus today's allowance (spent or swept), spread over one fewer day.
   expect(money.budget(state, now())).toBe(Math.floor((poolBefore - left) / (days - 1)));
 });
 
 test("overspending shrinks tomorrow and sweeps nothing", () => {
   const budget = money.budget(state, now());
-  const saved = state.goal.saved;
+  const saved = state.goals[0].saved;
   swipe(budget + 30);
   expect(money.today(state, now())).toBe(0);
   expect(money.over(state, now())).toBe(30);
   midnight();
-  expect(state.goal.saved).toBe(saved);
+  expect(state.goals[0].saved).toBe(saved);
   expect(money.budget(state, now())).toBeLessThan(budget);
 });
 
@@ -63,4 +63,25 @@ test("faithful: '$5k' counts as 5000", async () => {
   const { faithful } = await import("./voice.ts");
   expect(faithful("can't blackjack a $5k car", "a car for $5,000")).toBe(true);
   expect(faithful("a $6k car", "a car for $5,000")).toBe(false);
+});
+
+test("goals fill in priority order: overflow rolls to the next, ETAs queue", () => {
+  const [a, b, c] = state.goals; // iPhone 650/1099, Tokyo 0/2400, Emergency 1800/5000
+  expect(money.pour(state.goals, 500)).toEqual([449, 51, 0]);
+  expect(money.pour(state.goals, 449 + 2400 + 3200 + 10)).toEqual([449, 2400, 3210]); // no room: the last takes the rest
+  expect(money.save(state, 500)).toEqual({ id: a.id, delta: 449 });
+  expect([a.saved, b.saved, c.saved]).toEqual([1099, 51, 1800]);
+  expect(money.activeGoal(state).id).toBe(b.id);
+  // An ordered goal takes nothing; a goal's ETA counts every unfinished goal ahead of it.
+  a.done = { at: now().toISOString() };
+  const at = now();
+  const pace = money.pace(state, at);
+  expect(money.etaOf(state, at, a.id)).toBe(0);
+  expect(money.etaOf(state, at, b.id)).toBe(Math.ceil(2349 / pace));
+  expect(money.etaOf(state, at, c.id)).toBe(Math.ceil((2349 + 3200) / pace));
+  expect(money.eta(state, at)).toBe(money.etaOf(state, at, b.id));
+  // Reordering moves the sweeps, not the savings.
+  state.goals = [c, b, a];
+  expect(money.save(state, 100)).toEqual({ id: c.id, delta: 100 });
+  expect(b.saved).toBe(51);
 });

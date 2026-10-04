@@ -185,7 +185,7 @@ const OUTCOMES: Record<"bill" | "unused" | "idle" | "savings" | "move", (s: Prop
     const name = s.merchant!;
     const was = s.was!;
     const saved = s.amount!;
-    const goal = state.goal;
+    const goal = money.activeGoal(state);
     const offer = open("proposal", {
       find: "savings",
       key: `savings:${name}`,
@@ -200,7 +200,7 @@ const OUTCOMES: Record<"bill" | "unused" | "idle" | "savings" | "move", (s: Prop
     });
     return {
       outcome: { text: `Back to ${usd(was)}/mo. Saving ${usd(saved)}/mo.`, money: `${usd(saved)}/mo` },
-      lines: [`called ${name} 📞 back to ${usd(was)}/mo`, offer],
+      lines: [`just got off the phone with ${name} 📞 you're back to ${usd(was)}/mo`, offer],
     };
   },
   unused: (s) => {
@@ -211,7 +211,7 @@ const OUTCOMES: Record<"bill" | "unused" | "idle" | "savings" | "move", (s: Prop
     return {
       outcome: { text: `Cancelled. ${usd(price)}/mo back.`, money: `${usd(price)}/mo` },
       // Same unit as the bill card: what one month's saving buys, every month.
-      lines: [`${name}'s gone 💅 ${usd(price)}/mo back`, `that's the ${state.goal.name} ${money.lag(state, now(), price)} sooner every month`],
+      lines: [`bye ${name} 👋 that's ${usd(price)}/mo back in your pocket`, `that's the ${money.activeGoal(state).name} ${money.lag(state, now(), price)} sooner every month`],
     };
   },
   idle: (s) => {
@@ -233,10 +233,11 @@ const OUTCOMES: Record<"bill" | "unused" | "idle" | "savings" | "move", (s: Prop
   },
   savings: (s) => {
     const saved = s.saved ?? 0;
-    state.goal.saved += saved;
+    const goal = money.activeGoal(state);
+    const got = money.save(state, saved);
     return {
-      outcome: { text: `${usd(saved)}/mo → ${state.goal.name}`, money: `${usd(saved)}/mo` },
-      lines: [`done. first ${usd(saved)} is already in ${state.goal.emoji}`, open("goal", { delta: saved, source: s.merchant ?? "savings" })],
+      outcome: { text: `${usd(saved)}/mo → ${goal.name}`, money: `${usd(saved)}/mo` },
+      lines: [`done. first ${usd(saved)} is already in ${goal.emoji}`, open("goal", { ...got, source: s.merchant ?? "savings" })],
     };
   },
   // propose_move: Charles's own "put $X into Y". From today only into a fund (it leaves today like a
@@ -247,9 +248,10 @@ const OUTCOMES: Record<"bill" | "unused" | "idle" | "savings" | "move", (s: Prop
     if (s.from === "today" && amount > money.today(state, at)) throw new Error("more than today's number now");
     if (s.from === "checking") debitChecking(amount);
     if (s.to === "goal") {
-      state.goal.saved += amount;
-      return { outcome: { text: `Moved ${usd(amount)} → ${state.goal.name}`, money: usd(amount) },
-        lines: [`${usd(amount)} is in the ${state.goal.name} ${state.goal.emoji}`, open("goal", { delta: amount, source: "checking" })] };
+      const goal = money.activeGoal(state);
+      const got = money.save(state, amount);
+      return { outcome: { text: `Moved ${usd(amount)} → ${goal.name}`, money: usd(amount) },
+        lines: [`${usd(amount)} is in the ${goal.name} ${goal.emoji}`, open("goal", { ...got, source: "checking" })] };
     }
     const f = s.to!;
     state.ledger.push({ fund: f, amount, at: at.toISOString(), reason: s.from === "today" ? "today" : "cfo" });

@@ -4,6 +4,7 @@ import chat from "./chat.ts";
 import dashboard, { prime } from "./dashboard.ts";
 import accounts from "./accounts.ts";
 import settings from "./settings.ts";
+import "./goals.ts"; // registers the Settings → Goals editor
 import demo from "./demo.ts";
 import { hydrateIcons } from "./icons.ts";
 import { face } from "./people.ts";

@@ -175,7 +175,7 @@ export function paycheck(b: { amount?: number } = {}) {
     : `The month's plan already counted it (${usd(state.month.income)} of pay), so today's number stays ${usd(after)}.`;
   return speak("dime",
     `Payday: ${usd(amount)} from Payroll just landed in Chase Checking (now ${usd(balance("checking"))}). ${plan} Bills still to come this month, already set aside: ${usd(cents(sum(month)))} (${month.map((u) => u.merchant).join(", ")}). You propose investing ${usd(invest)} (15%) in the ${fund(f).name}; if he approves, today's number becomes ${usd(ifInvested)}. The rest is his to spend. A proposal card with the invest ask follows your words; don't ask it yourself.`,
-    [`payday 💸 ${usd(amount)} landed`, after > before ? `today's ${usd(after)} now (was ${usd(before)})` : `bills are covered, today's still ${usd(after)}`, app]);
+    [`payday 🎉 ${usd(amount)} just landed`, after > before ? `bonus check energy: today went from ${usd(before)} to ${usd(after)}` : `bills are already covered, so it's all good. want a slice invested?`, app]);
 }
 
 /** A refund posts against an earlier purchase (the latest shopping one by default): today goes up. */
@@ -187,7 +187,7 @@ export function refund(b: { merchant?: string } = {}) {
   const after = today();
   return speak("dime",
     `${from.merchant} refunded ${usd(from.amount)} for his ${day(new Date(from.at))} purchase. Refunds count back into today: today's number goes from ${usd(before)} to ${usd(after)}.`,
-    [`${from.merchant} refund landed ✨ +${usd(from.amount)}`, `today's ${usd(after)} now`]);
+    [`the ${from.merchant} refund came through ✨ ${usd(from.amount)} back`, `so you've got ${usd(after)} today now. don't spend it all in one place lol`]);
 }
 
 /** The same charge twice within minutes: flag it, offer to dispute. */
@@ -223,7 +223,7 @@ export function flag(txn: Txn) {
     });
     return speak("dime",
       `Two identical ${merchant} charges just posted, ${usd(amount)} each, ${mins} minute${mins === 1 ? "" : "s"} apart: the second is almost certainly a double charge. Both count against today right now: ${usd(today())} left. A card follows your words asking whether to dispute the second one; don't ask it yourself.`,
-      [`${merchant} charged you twice 🤨 ${usd(amount)}, ${mins} minute${mins === 1 ? "" : "s"} apart`, app]);
+      [`umm ${merchant} charged you ${usd(amount)} twice, ${mins} minute${mins === 1 ? "" : "s"} apart 🤨 pretty sure one's a glitch`, app]);
   }
   const why = suspicion(txn);
   if (why.length < 2) return null;
@@ -238,7 +238,7 @@ export function flag(txn: Txn) {
   });
   return speak("dime",
     `A charge just posted that doesn't look like Charles: ${usd(amount)} at ${merchant}. Why it's odd: ${why.join("; ")}. It's already counted against today (${usd(today())} left); freezing and disputing gets it back. A card follows your words asking "was this you?" with Freeze card / It was me; keep it short and calm, don't ask it yourself.`,
-    [`hey, ${usd(amount)} at ${merchant} at ${clockTime(t)}. was this you? 👀`, app]);
+    [`hey, quick one: ${usd(amount)} at ${merchant} at ${clockTime(t)}. that you? doesn't look like you 👀`, app]);
 }
 
 /** A free trial is about to convert (the trial-end notice lands): the CFO's trial find, as a card. */
@@ -253,7 +253,7 @@ export function trial(b: { merchant?: string } = {}) {
   const opened = Math.floor((now().getTime() - new Date(sub.lastUsed).getTime()) / DAY);
   return speak("dime",
     `${sub.merchant}'s free trial converts ${weekday(ends)} (${day(ends)}) to ${usd(sub.price)}/mo. He last opened it ${day(new Date(sub.lastUsed))} (${opened} days ago), the night he signed up, never since. A card follows your words offering to cancel before it charges; don't ask it yourself.`,
-    [`${sub.merchant} trial turns into ${usd(sub.price)}/mo on ${weekday(ends)}`, `you opened it once 💀`, app]);
+    [`your ${sub.merchant} trial starts charging ${usd(sub.price)}/mo on ${weekday(ends)}`, `and you opened it like once 💀 kill it?`, app]);
 }
 
 /** A bill posts higher than its history (Verizon's autopay discount ended): the CFO's bill find. */
@@ -270,7 +270,7 @@ export function billHike(b: { merchant?: string; amount?: number } = {}) {
   const months = state.txns.filter((t) => t.kind === "bill" && t.merchant === merchant).length - 1;
   return speak("dime",
     `${merchant}'s bill just posted at ${usd(amount)}. The last ${months} were ${usd(p.was!)}: ${usd(p.amount!)} more, nothing else changed on his plan. A card follows your words offering to call and get it back down; don't ask it yourself.`,
-    [`${merchant} went up ${usd(p.amount!)} 📈 ${usd(p.was!)} → ${usd(amount)}`, app]);
+    [`${merchant} quietly bumped you from ${usd(p.was!)} to ${usd(amount)} 😑 that's ${usd(p.amount!)} more for nothing`, app]);
 }
 
 /** A big payment leaves checking (the Sapphire autopay): if the runway to payday goes under the
@@ -291,7 +291,7 @@ export function lowBalance(b: { amount?: number } = {}) {
   });
   return speak("dime",
     `Heads-up: the Chase Sapphire autopay just took ${usd(amount)}, leaving ${usd(balance("checking"))} in checking. Before payday (${day(r.pay)}, ${r.days} days) he has ${usd(r.billsTotal)} of bills due (${r.bills.map((x) => x.merchant).join(", ")}) and usually spends about ${usd(r.perDay)} a day, which would leave him ${r.left < 0 ? `about ${usd(-r.left)} short` : `only about ${usd(r.left)}`}: too close. Savings has ${usd(balance("savings"))}. A card follows your words offering to move ${usd(move)} from savings; don't ask it yourself. Calm, not alarming.`,
-    [`heads up: Sapphire autopay took ${usd(amount)}. checking's at ${usd(balance("checking"))} 🫣`, `that's tight till payday ${day(r.pay)}`, app]);
+    [`ok heads up, the Sapphire autopay took ${usd(amount)} and checking's down to ${usd(balance("checking"))} 🫣`, `that's cutting it close till payday ${day(r.pay)}. I've got an idea 👇`, app]);
 }
 
 /** A fund Charles holds moves X% today. Calm, long-term, education not advice. */
@@ -306,30 +306,33 @@ export function market(b: { fund?: FundId; pct?: number } = {}) {
   return speak("dime",
     `Market move: the ${name} (${pick.ticker || pick.id}) ${down ? "fell" : "rose"} ${Math.abs(pct)}% today. Charles holds ${usd(pick.value)} in it, so it's about ${usd(moved)} ${down ? "lighter" : "heavier"} on paper. He's investing for years, not days; one-day moves like this are normal for a fund like it. Explain calmly in one or two short lines: no panic, no hype, no prediction, nothing he should do. Education, not advice.`,
     down
-      ? [`${name} down ${Math.abs(pct)}% today. your ${usd(pick.value)} is ${usd(moved)} lighter on paper`, `normal for it. you're in for years, not days 🧘`]
-      : [`${name} up ${pct}% today. +${usd(moved)} on paper 📈`, `nice, but days like this cancel out. years are what count`]);
+      ? [`${name} had a rough day, down ${Math.abs(pct)}%. you're about ${usd(moved)} lighter on paper`, `totally normal for it tho. you're in for years, not days 🧘`]
+      : [`${name} popped ${pct}% today, you're up ${usd(moved)} on paper 📈`, `fun, but don't get attached. years are what count`]);
 }
 
 const MILESTONES = [50, 75, 90];
 /** September's round-ups land in the goal; crossing 50/75/90% gets a hype line. */
 export function milestone() {
-  const g = state.goal;
+  const g = money.activeGoal(state);
   const was = money.pct(state);
   const next = MILESTONES.find((m) => m > was);
   if (!next) throw new Error("goal is past 90%");
   const amount = Math.ceil((g.price * next) / 100) - g.saved;
-  g.saved += amount;
-  const app = open("goal", { delta: amount, source: "round-ups" });
+  g.saved += amount; // below 90%: stays on the active goal
+  const app = open("goal", { id: g.id, delta: amount, source: "round-ups" });
   return speak("dime",
     `Round-ups from his card (spare change to the dollar) just added ${usd(amount)} to the ${g.name} ${g.emoji}. That crosses ${next}%: ${usd(g.saved)} of ${usd(g.price)}. Hype it in one short line. The goal card follows your words.`,
-    [`${next}% 🎉 ${g.name} is ${usd(g.saved)} of ${usd(g.price)}`, app]);
+    [`your round-ups just pushed the ${g.name} past ${next}% 🎉 spare change is doing numbers`, app]);
 }
+
+/** Under-budget streak lengths worth a text (events.ts midnight, the demo's streak button). */
+export const STREAK_MILESTONES = [3, 7, 14, 21, 30];
 
 /** End-of-day check: a run of days under the number gets a short hype line. */
 export function underStreak() {
   const n = streak();
-  if (n < 3) return; // not a streak yet: nothing worth a text
-  return speak("dime", `He has come in under his daily number ${n} days in a row. One short hype line, no lecture.`, [`${n} days under in a row 🔥 who even are you`]);
+  if (!STREAK_MILESTONES.includes(n)) return; // only milestone lengths are worth a text
+  return speak("dime", `He has come in under his daily number ${n} days in a row. One short hype line, no lecture.`, [n >= 14 ? `${n} days under your number. who even are you 🔥` : `${n} days in a row under your number 🔥 keep it going`]);
 }
 
 /** Sam pays Charles back on Venmo (he fronted the Uber): counts like a refund, today goes up. */
@@ -341,7 +344,7 @@ export function venmoPaid(b: { who?: "Penny" | "Maya" | "Sam"; amount?: number; 
   ingest({ merchant: `Venmo · ${who}`, amount, category: "transport", kind: "refund" });
   post({ thread: "group", direction: "out", sender: who, body: `sent you $${amount} for ${what} 🫡` });
   return speak("dime", `${who} just paid Charles back ${usd(amount)} on Venmo for ${what}. It counts back into today: ${usd(before)} → ${usd(today())}.`,
-    [`${who} paid you back ${usd(amount)} 🤝`, `today's ${usd(today())} now`]);
+    [`${who} finally paid you back ${usd(amount)} 🤝 it's back in today`]);
 }
 
 /** Maya requests money on Venmo: Dime shows what it does to today; paying it is a card. */
@@ -358,7 +361,7 @@ export function venmoRequest(b: { who?: "Penny" | "Maya" | "Sam"; amount?: numbe
     verb: `Pay ${who}`, working: `Approved · paying ${who}`, declined: "Not yet. It stays in your requests.",
   });
   return speak("dime", `${who} requested ${usd(amount)} on Venmo for ${what}. Paying it comes out of today: ${usd(left)} → ${usd(Math.max(0, left - amount))}. A card follows your words offering to pay; don't ask it yourself.`,
-    [`${who} wants ${usd(amount)} for ${what}`, app]);
+    [`${who}'s asking for ${usd(amount)} for ${what} 👀 want me to send it?`, app]);
 }
 
 /** Sunday: the week in one bundle. Numbers in the DM; only pass/fail and streaks in the group. */
@@ -377,8 +380,8 @@ export function weeklyRecap() {
   const hot = trends(at)[0];
   const n = streak(at);
   const dm = speak("dime",
-    `Weekly recap (${day(start)} to ${day(new Date(end.getTime() - 1))}): card spend ${usd(total)}, biggest category ${top} (${usd(Math.round(topAmt))}); under his number ${under} of 7 days; ${usd(swept)} swept to the ${state.goal.name}, now ${money.pct(state)}%.${hot ? ` Running hot this month: ${hot.category}, ${usd(hot.per_day_now)}/day vs ${usd(hot.per_day_last_month)}/day last month.` : ""} Two or three short lines, the one thing to notice last.`,
-    [`week recap: ${usd(total)} spent, ${under}/7 days under`, `${usd(swept)} to the ${state.goal.name}, ${money.pct(state)}% now ${state.goal.emoji}`, `most went to ${top} (${usd(Math.round(topAmt))})`]);
+    `Weekly recap (${day(start)} to ${day(new Date(end.getTime() - 1))}): card spend ${usd(total)}, biggest category ${top} (${usd(Math.round(topAmt))}); under his number ${under} of 7 days; ${usd(swept)} swept to the ${money.activeGoal(state).name}, now ${money.pct(state)}%.${hot ? ` Running hot this month: ${hot.category}, ${usd(hot.per_day_now)}/day vs ${usd(hot.per_day_last_month)}/day last month.` : ""} Two or three short lines, the one thing to notice last.`,
+    [`ok your week: ${under} of 7 days under your number, honestly solid`, `${usd(swept)} went to the ${money.activeGoal(state).name}, you're at ${money.pct(state)}% ${money.activeGoal(state).emoji}`, `${top} was the big one at ${usd(Math.round(topAmt))}. we can work on that`]);
   const sam = state.friends.find((f) => f.name === "Sam")?.streak ?? 0;
   const group = speak("group",
     `Weekly scoreboard for the group. Charles: ${under} of 7 days under budget, a ${n}-day streak. Sam: ${sam}-day no-spend streak. No dollar amounts or balances in the group. One or two playful lines, address everyone.`,
@@ -397,7 +400,7 @@ Object.assign(EVENT_OUTCOMES, {
   dispute: (s) => {
     credit(s, "disputed");
     return { outcome: { text: `Disputed. ${usd(s.amount!)} credited back.`, money: usd(s.amount!) },
-      lines: [`disputed ✅ ${usd(s.amount!)} is back`, `today's ${usd(today())} again`] };
+      lines: [`done, the double charge is disputed and your ${usd(s.amount!)} is back ✅`] };
   },
   freeze: (s) => {
     credit(s, "disputed");
@@ -409,7 +412,7 @@ Object.assign(EVENT_OUTCOMES, {
     bank("savings", -s.amount!);
     bank("checking", s.amount!);
     return { outcome: { text: `Moved ${usd(s.amount!)} from savings.`, money: usd(s.amount!) },
-      lines: [`done. checking's ${usd(balance("checking"))}, you're covered till payday`] };
+      lines: [`done, checking's back to ${usd(balance("checking"))}. you're good till payday 🫡`] };
   },
   invest: (s) => {
     const f = s.to as FundId;
@@ -417,11 +420,11 @@ Object.assign(EVENT_OUTCOMES, {
     bank("checking", -s.amount!);
     state.ledger.push({ fund: f, amount: s.amount!, at: now().toISOString(), reason: "paycheck" });
     return { outcome: { text: `${usd(s.amount!)} → ${fund(f).name}`, money: usd(s.amount!) },
-      lines: [`${usd(s.amount!)} → ${fund(f).name} 📈`, `today's ${usd(today())}, the rest is yours`] };
+      lines: [`${usd(s.amount!)} is in the ${fund(f).name} now 📈 future you says thanks`] };
   },
   pay: (s) => {
     ingest({ merchant: s.merchant!, amount: s.amount!, category: "food", kind: "spend" });
-    return { outcome: { text: `Paid ${usd(s.amount!)}.`, money: usd(s.amount!) }, lines: [`paid ✅ ${usd(today())} left today`] };
+    return { outcome: { text: `Paid ${usd(s.amount!)}.`, money: usd(s.amount!) }, lines: [`paid ✅ you've got ${usd(today())} left for today`] };
   },
 } satisfies typeof EVENT_OUTCOMES);
 

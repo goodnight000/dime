@@ -1,0 +1,507 @@
+/* The dashboard calendar (calendar.ts): month grid + heat map on the left, the day detail beside it.
+   The detail is absolutely stacked inside a box the calendar sizes, so a long day never moves the page. */
+main.dash .days {
+  /* Sequential ramp, one hue: money mixed into the pane. Level 0 = a past day with no spend. */
+  --h0: color-mix(in srgb, var(--fg) 5%, var(--pane));
+  --h1: color-mix(in srgb, var(--money) 14%, var(--pane));
+  --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
+  --h3: color-mix(in srgb, var(--money) 48%, var(--pane));
+  --h4: color-mix(in srgb, var(--money) 70%, var(--pane));
+  --h5: color-mix(in srgb, var(--money) 92%, var(--pane));
+  --thumb-c: var(--pane);
+  display: grid;
+  gap: var(--s3);
+  min-width: 0;
+}
+:root[data-theme="dark"] main.dash .days {
+  --h0: color-mix(in srgb, var(--fg) 6%, var(--pane));
+  --h1: color-mix(in srgb, var(--money) 18%, var(--pane));
+  --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
+  --h3: color-mix(in srgb, var(--money) 46%, var(--pane));
+  --h4: color-mix(in srgb, var(--money) 60%, var(--pane));
+  --h5: color-mix(in srgb, var(--money) 76%, var(--pane));
+  --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) main.dash .days {
+    --h0: color-mix(in srgb, var(--fg) 6%, var(--pane));
+    --h1: color-mix(in srgb, var(--money) 18%, var(--pane));
+    --h2: color-mix(in srgb, var(--money) 32%, var(--pane));
+    --h3: color-mix(in srgb, var(--money) 46%, var(--pane));
+    --h4: color-mix(in srgb, var(--money) 60%, var(--pane));
+    --h5: color-mix(in srgb, var(--money) 76%, var(--pane));
+    --thumb-c: color-mix(in srgb, var(--fg) 13%, var(--bg-2));
+  }
+}
+
+/* ---- Head: month + arrows left, mode right ---- */
+main.dash .cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+main.dash .mnav {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+main.dash .mnav h2 {
+  min-width: 9.5rem; /* "September 2026": the arrows never shift between months */
+  margin-right: var(--s1);
+}
+main.dash .days .ib {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color var(--quick),
+    color var(--quick);
+}
+main.dash .days .ib svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+main.dash .days .ib .back {
+  scale: -1 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .days .ib:not(:disabled):hover {
+    background: var(--bg-2);
+    color: var(--fg);
+  }
+}
+main.dash .days .ib:active:not(:disabled) {
+  scale: 0.92;
+}
+main.dash .days .ib:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+main.dash .days .ib:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* Segmented: the settings screen's control (a thumb slides under the chosen mode). */
+main.dash .days .seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--bg-2);
+}
+main.dash .days .seg button {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  height: 1.75rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 1.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--quick);
+}
+main.dash .days .seg button[aria-checked="true"] {
+  color: var(--fg);
+  cursor: default;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .days .seg button:hover {
+    color: var(--fg);
+  }
+}
+main.dash .days .seg button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0;
+}
+main.dash .days .seg .thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 8px;
+  background: var(--thumb-c);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 10%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  translate: calc(var(--i, 0) * 100%) 0;
+  transition: translate var(--move) var(--ease-in-out);
+}
+
+/* ---- Body: grid | detail ---- */
+main.dash .cal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: var(--s4);
+}
+main.dash .days .wk,
+main.dash .days .cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+main.dash .days .wk {
+  margin-bottom: var(--s1);
+}
+main.dash .days .wk span {
+  text-align: center;
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .days .c {
+  all: unset;
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 3.25rem;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: var(--h0);
+  color: var(--fg);
+  cursor: pointer;
+  transition:
+    background-color var(--quick),
+    color var(--quick),
+    box-shadow var(--quick);
+}
+main.dash .days .c.blank {
+  background: none;
+  cursor: default;
+}
+main.dash .days .c.lv1 { background: var(--h1); }
+main.dash .days .c.lv2 { background: var(--h2); }
+main.dash .days .c.lv3 { background: var(--h3); }
+main.dash .days .c.lv4 { background: var(--h4); color: var(--pane); }
+main.dash .days .c.lv5 { background: var(--h5); color: var(--pane); }
+main.dash .days .c.future {
+  background: none;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+main.dash .days .c.now {
+  box-shadow: inset 0 0 0 1.5px var(--fg);
+}
+main.dash .days .c.sel {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .days .c:not(.blank):not(.sel):not(.now):hover {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 35%, transparent);
+  }
+}
+main.dash .days .c:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+main.dash .days .c:active:not(.blank) {
+  scale: 0.97;
+  transition: scale var(--t-press) ease-out;
+}
+main.dash .days .dn {
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .c .od,
+main.dash .days .legend .od {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+main.dash .days .c .od {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  box-shadow: 0 0 0 1.5px var(--pane);
+}
+main.dash .days .marks {
+  align-self: end;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+main.dash .days .marks .brand {
+  --bs: 1rem;
+}
+main.dash .days .marks .brand.plain {
+  background: var(--pane);
+  color: var(--fg);
+}
+main.dash .days .marks .brand.plain > svg {
+  width: 70%;
+  height: 70%;
+}
+main.dash .days .marks small {
+  margin-left: 1px;
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legend: the ramp with its words, the scale in dollars, the over dot. */
+main.dash .days .legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  margin-top: var(--s2);
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .days .ramp {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+main.dash .days .ramp span:first-child {
+  margin-right: var(--s1);
+}
+main.dash .days .ramp span:last-child {
+  margin-left: var(--s1);
+}
+main.dash .days .ramp i {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+main.dash .days .ramp .lv0 { background: var(--h0); }
+main.dash .days .ramp .lv1 { background: var(--h1); }
+main.dash .days .ramp .lv2 { background: var(--h2); }
+main.dash .days .ramp .lv3 { background: var(--h3); }
+main.dash .days .ramp .lv4 { background: var(--h4); }
+main.dash .days .ramp .lv5 { background: var(--h5); }
+main.dash .days .scale {
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .key-over {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  margin-left: auto;
+  transition: opacity var(--quick);
+}
+main.dash .days .key-over.off {
+  opacity: 0;
+}
+
+/* ---- Detail: the month, or a day. Panes stack in a box the calendar sizes. ---- */
+main.dash .days .dd {
+  position: relative;
+  min-height: 0;
+  border-left: 1px solid var(--rule);
+}
+main.dash .days .dd > .pane {
+  position: absolute;
+  inset: 0 0 0 var(--s4);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+main.dash .days .pane .ey {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+}
+main.dash .days .dh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -0.375rem; /* the close button's box, not its glyph, aligns with the text */
+}
+main.dash .days .dh .ib svg {
+  width: 1rem;
+  height: 1rem;
+}
+main.dash .days .fig {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+main.dash .days .pane .big {
+  margin-top: var(--s1);
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .fig .big {
+  margin-top: 0;
+}
+main.dash .days .tag {
+  padding: 2px var(--s2);
+  border-radius: 8px;
+  background: var(--bg-2);
+  font-size: var(--step--2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+main.dash .days .tag.over {
+  background: color-mix(in srgb, var(--danger) 14%, var(--pane));
+  color: var(--danger);
+}
+main.dash .days .tag.under {
+  background: color-mix(in srgb, var(--money) 14%, var(--pane));
+  color: var(--money);
+}
+main.dash .days .pane .meta {
+  margin-top: var(--s1);
+  font-size: var(--step--1);
+  color: var(--muted);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .line {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
+  font-size: var(--step--1);
+  line-height: 1.35;
+}
+main.dash .days .line .cue {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 1px;
+}
+main.dash .days .scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  margin-top: var(--s2);
+}
+main.dash .days .pane h3 {
+  margin: var(--s3) 0 var(--s1);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+main.dash .days .scroll h3:first-child {
+  margin-top: var(--s1);
+}
+main.dash .days .lst {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+main.dash .days .lst > li {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 2.5rem;
+  border-top: 1px solid var(--rule);
+}
+main.dash .days .lst .brand {
+  --bs: 1.5rem;
+}
+main.dash .days .lst .tt {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+main.dash .days .lst .tt b {
+  font-size: var(--step--1);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .days .lst .tt small {
+  font-size: var(--step--2);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .days .lst .v {
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+main.dash .days .lst .credit .v {
+  color: var(--money);
+}
+main.dash .days .lst .empty,
+main.dash .days .pane .empty {
+  display: block;
+  padding-top: var(--s2);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+/* Phone: the calendar full width, the detail below it at a fixed height (no reflow on open). */
+@media (max-width: 759px) {
+  main.dash .cal-head {
+    flex-wrap: wrap;
+  }
+  main.dash .cal-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  main.dash .days .c {
+    height: 3rem;
+    padding: 4px;
+  }
+  main.dash .days .marks .brand {
+    --bs: 0.8125rem;
+  }
+  main.dash .days .dd {
+    height: 24rem;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  main.dash .days .dd > .pane {
+    inset: var(--s3) 0 0 0;
+  }
+  main.dash .days .key-over {
+    margin-left: 0;
+  }
+}
+main.dash .days .c.blank .dn {
+  color: var(--muted);
+  opacity: 0.5;
+}
+main.dash .days .lst .go {
+  all: unset;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 2.5rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+main.dash .days .lst .go:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  main.dash .days .lst .go:hover b {
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 3px;
+  }
+}

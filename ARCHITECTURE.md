@@ -65,7 +65,7 @@ type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
 type Txn = { id; at; merchant; amount; category; kind: "spend"|"bill"|"income"|"refund"|"transfer"; covered?: boolean };
 State = { user: { name: "Charles", tone: "savage"|"nice", fund: FundId|null, hourly: 32 },
           month: { income: 3200, bills: 1700, invest: 0 },
-          txns: Txn[], goal: { name, price, saved, emoji }, ledger: { fund, amount, at, reason }[],
+          txns: Txn[], goals: { id, name, price, saved, emoji, store?, done? }[] (priority order), ledger: { fund, amount, at, reason }[],
           sweeps: { at, amount }[], bonus: { at, amount }[],   // bonus = market winnings, adds to today
           messages: Message[], apps: Record<string, App>, friends: [...], clockOffsetMs: number }
 ```
@@ -79,7 +79,7 @@ pool   = income − bills − invest − discretionary spend this month (non-cov
 today  = max(0, floor(poolAtStartOfDay / daysLeftIncludingToday) − spentToday − lostToday + bonusToday)
 pace   = avg sweep over last 7 days (fallback today × 0.25); eta = ceil((price − saved)/pace); delay = ceil(amount/pace)
 ```
-Midnight: leftover today → goal (`sweeps`, goal.saved += leftover). Overspend → tomorrow shrinks by itself.
+Midnight: leftover today → goals in priority order (`sweeps`, `money.save`: fills the active goal, overflow rolls to the next). Overspend → tomorrow shrinks by itself.
 Blackjack loss → ledger entry in user's fund (asks for a fund via the `funds` app if none set yet).
 
 ## HTTP contract (server/index.ts)
@@ -90,7 +90,8 @@ GET  /api/messages?thread=dime|group  → { messages: Message[], apps: Record<id
 POST /api/messages {thread,text,reply_to?} → { id, pending:true }   (reply arrives via poll)
 POST /api/messages/:id/tapback {tapback}
 POST /api/apps/:id/:action {…}        → { app }   (e.g. blackjack hit/stand, funds pick, proposal approve, market bet)
-GET  /api/summary                     → numbers for the dashboard (today, goal, ledger by fund, spend by category, calendar)
+GET  /api/summary                     → numbers for the dashboard (today, goal, goals stack, ledger by fund, spend by category, calendar)
+GET|POST|PUT /api/goals, PATCH|DELETE /api/goals/:id → the goals list (server/goals.ts; Settings and the agent tools share it)
 GET  /api/accounts, POST /api/accounts/:id/connect
 POST /api/demo/:action {…}            → swipe {merchant,amount,category} | morning | midnight | skip-day | cfo-scan | friend-swipe {who,merchant,amount} | force-blackjack {result} | reset
 ```

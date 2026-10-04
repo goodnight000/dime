@@ -12,7 +12,7 @@
 }
 .fp-row {
   display: grid;
-  grid-template-columns: 1.125rem minmax(0, 1fr) auto;
+  grid-template-columns: 1.125rem 1.5rem minmax(0, 1fr) auto; /* radio | issuer mark (brands.ts) | text | risk */
   gap: var(--s2);
   align-items: center;
   box-sizing: border-box;
@@ -207,4 +207,9 @@
    button's label from catching clicks meant for the outcome or Retry over it. */
 .fp-answer > :not(.on) .on {
   pointer-events: none;
+}
+
+/* The issuer's mark (Vanguard, Invesco, iShares, Roundhill; Cash a bank glyph), a step smaller than row tiles. */
+.fp-row > .brand {
+  --bs: 1.5rem;
 }

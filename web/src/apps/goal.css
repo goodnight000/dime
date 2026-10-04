@@ -1,12 +1,12 @@
-/* The goal card (DESIGN.md §3.3). 352 × 160: the glass | the numbers. A card that fills the goal
+/* The goal card (DESIGN.md §3.3). 352 × 160: the ring | the numbers. A card that fills the goal
    adds the 2.75rem answer row (Order it / Not yet, styled by proposal.css) under the same 160. */
 .b.app[data-kind="goal"]:has(.gl-ask) {
   --card-h: 12.75rem;
 }
 .gl {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: var(--s3);
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--s4);
   align-items: center;
   height: 10rem;
   padding: 0 var(--card-pad);
@@ -63,64 +63,7 @@
   }
 }
 
-/* The glass: a phone outline whose well fills with money. --p is the level, 0–1. */
-.glass {
-  position: relative;
-  width: 4.5rem;
-  height: 8.75rem;
-  box-sizing: border-box;
-  border: 2px solid var(--fg);
-  border-radius: 1.125rem;
-  padding: 3px;
-}
-.glass::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  top: 8px;
-  left: 50%;
-  translate: -50% 0;
-  width: 1.25rem;
-  height: 0.3125rem;
-  border-radius: 999px;
-  background: var(--fg);
-}
-.glass .well {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  border-radius: calc(1.125rem - 2px - 3px);
-}
-.glass .liquid {
-  position: absolute;
-  inset: 0;
-  background: var(--money);
-  transform: translateY(calc((1 - var(--p, 0)) * 100%));
-  transition: transform var(--t-data) var(--ease-in-out);
-}
-.glass .wave {
-  position: absolute;
-  bottom: calc(100% - 1px);
-  left: 0;
-  width: 200%;
-  height: 6px;
-  fill: var(--money);
-  stroke: none;
-  scale: 1 0.35;
-  transform-origin: bottom;
-}
-.glass.empty .wave {
-  opacity: 0;
-}
-.glass.filling .wave {
-  animation: slosh var(--t-data) linear;
-}
-@keyframes slosh {
-  20% {
-    scale: 1 1;
-  }
-  to {
-    translate: -50% 0;
-    scale: 1 0.35;
-  }
+/* The ring (ring.ts/ring.css) at card size: 7rem in the 10rem card, the face its emoji or brand. */
+.gl .ring {
+  --rs: 7rem;
 }

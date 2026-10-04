@@ -1,6 +1,6 @@
 // Every number Dime says comes from here: pure functions of the state and a moment. The voice only
 // words them. Rules: ARCHITECTURE.md "Money rules".
-import type { State, Txn } from "./state.ts";
+import type { Goal, State, Txn } from "./state.ts";
 
 const DAY = 86_400_000;
 export const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -79,8 +79,44 @@ export function pace(s: State, at: Date): number {
   return Math.max(1, p);
 }
 
-export const eta = (s: State, at: Date, saved = s.goal.saved) =>
-  Math.max(0, Math.ceil((s.goal.price - saved) / pace(s, at)));
+// ---- Goals: a priority queue. Money fills the first unfinished goal; overflow rolls to the next. ----
+const room = (g: Goal) => (g.done ? 0 : Math.max(0, g.price - g.saved));
+const NONE: Goal = { id: "none", name: "your goal", price: 1, saved: 0, emoji: "🎯", createdAt: new Date(0).toISOString() };
+/** The goal savings go to now (girl math is about this one): the first not yet full. */
+export const activeGoal = (s: State): Goal => s.goals.find((g) => room(g) > 0) ?? s.goals.at(-1) ?? NONE;
+/** How `amount` splits across `goals` in order: each takes up to what it still needs. Money with no
+ *  room left anywhere stays on the last goal not yet ordered, so a sweep never vanishes. */
+export function pour(goals: Goal[], amount: number): number[] {
+  let left = Math.max(0, amount);
+  const out = goals.map((g) => {
+    const take = Math.min(left, room(g));
+    left -= take;
+    return take;
+  });
+  const last = goals.findLastIndex((g) => !g.done);
+  if (left > 0 && last >= 0) out[last] += left;
+  return out;
+}
+/** Adds savings in priority order. Returns the goal the money reached first and what it got (the goal card's subject). */
+export function save(s: State, amount: number): { id: string; delta: number } {
+  const first = activeGoal(s).id;
+  const parts = pour(s.goals, amount);
+  s.goals.forEach((g, i) => (g.saved += parts[i]));
+  const i = parts.findIndex((p) => p > 0);
+  return i < 0 ? { id: first, delta: 0 } : { id: s.goals[i].id, delta: parts[i] };
+}
+/** Days until goal `id` is full at today's pace, after every unfinished goal ahead of it fills
+ *  (its own `saved` can be swapped for a what-if). 0 once it's full. */
+export function etaOf(s: State, at: Date, id: string, saved?: number): number {
+  let need = 0;
+  for (const g of s.goals) {
+    const own = g.id === id;
+    need += own && saved !== undefined ? Math.max(0, g.price - saved) : room(g);
+    if (own) return need > 0 && (saved !== undefined || room(g) > 0) ? Math.ceil(need / pace(s, at)) : 0;
+  }
+  return 0;
+}
+export const eta = (s: State, at: Date, saved?: number) => etaOf(s, at, activeGoal(s).id, saved);
 export const delay = (s: State, at: Date, amount: number) => Math.ceil(amount / pace(s, at));
 /** Girl math in words: "~3 hours" when it's under a day of pace (a $7 matcha isn't a day), else
  *  rounded days. ceil stays for ETA dates (delay, eta). */
@@ -93,6 +129,8 @@ export function lag(s: State, at: Date, amount: number): string {
   const n = Math.round(d);
   return `${n} day${n === 1 ? "" : "s"}`;
 }
-export const pct = (s: State) => Math.min(100, Math.round((s.goal.saved / s.goal.price) * 100));
+export const pctOf = (g: Pick<Goal, "saved" | "price">) => Math.min(100, Math.round((g.saved / Math.max(1, g.price)) * 100));
+/** The active goal's percent. */
+export const pct = (s: State) => pctOf(activeGoal(s));
 export const etaDate = (s: State, at: Date, days = eta(s, at)) =>
   new Date(dayStart(at).getTime() + days * DAY);

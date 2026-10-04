@@ -287,8 +287,8 @@ function announce(app: App, dm = true, credit = () => {}) {
       void speak("dime",
         `Charles ${mine.net > 0 ? "won" : "lost"} his group market bet (${bet} on "${m.question}"): ${signedUsd(mine.net)} to today. Left today: ${usd(left)}. ${mine.net > 0 ? "Celebrate it: market winnings are free money on top of today's number." : "Own the loss, lightly."}`,
         mine.net > 0
-          ? [`your ${m.subject} bet hit 💸 +${usd(mine.net)}`, `${usd(left)} left today`]
-          : [`your ${m.subject} bet missed. −${usd(-mine.net)}`, `${usd(left)} left today`]);
+          ? [`your ${m.subject} bet hit 💸 +${usd(mine.net)} free money`, `that's on top of today, you're at ${usd(left)} now`]
+          : [`welp, the ${m.subject} bet didn't land. −${usd(-mine.net)}`, `we go again next time 🫡`]);
     }
   };
   void chat([
@@ -325,6 +325,6 @@ export function friendSwipe(input: { who: Friend; merchant: string; amount: numb
 export function settleAtMidnight() {
   for (const app of openMarkets()) {
     settle(app, "no", spentIn(app.state as Market));
-    announce(app, false); // the midnight sweep message already covers today
+    announce(app); // the midnight sweep is silent now, so Charles hears his result here
   }
 }

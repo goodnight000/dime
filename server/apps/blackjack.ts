@@ -132,13 +132,13 @@ function settle(app: App, draws: number, revealed: boolean) {
     state.ledger.push({ fund: f, amount: s.amount, at, reason: "blackjack" });
     s.fund = { id: f, name: fund(f).name };
     return later(`He loses: no ${s.item}, and the ${usd(s.amount)} left today and went into his ${fund(f).name} fund (invested, not lost).`,
-      `house wins. ${usd(s.amount)} is in the ${fund(f).name} now, future you says thanks 📈`);
+      `house wins 😌 but that ${usd(s.amount)} just became ${fund(f).name} money, so honestly you won too`);
   }
   state.pendingInvest = { amount: s.amount, at, reason: "blackjack" };
   const picker = fundsCard();
   state.apps[picker.id] = picker;
   later(`He loses: no ${s.item}. The ${usd(s.amount)} left today and is parked until he picks a fund (do not say it is invested yet): a fund picker card follows your words.`,
-    `house wins. ${usd(s.amount)} has to go somewhere. pick a fund 👇`, picker);
+    `house wins 😌 the ${usd(s.amount)} gets invested though. pick where it lives 👇`, picker);
 }
 
 export function create(input: any = {}): App {

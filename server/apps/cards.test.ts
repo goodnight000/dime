@@ -37,7 +37,7 @@ test("pick sets the fund and moves a pending loss into the ledger once", async (
 });
 
 test("goal records the sweep from the old level to the new", () => {
-  state.goal.saved += 12;
+  state.goals[0].saved += 12;
   const s = open("goal", { delta: 12 }).state;
   expect(s.to.saved - s.from.saved).toBe(12);
   expect(s.to.pct).toBeGreaterThanOrEqual(s.from.pct);

@@ -260,7 +260,7 @@ All cards: background `--bg-2` unless stated, text inset `--card-pad`, body step
 |---|---|---|
 | blackjack | 19rem | `--felt` |
 | funds | 24rem | `--bg-2` + inner `--pane` list |
-| goal | 10rem | `--bg-2` |
+| goal | 10rem (12.75rem with the order row) | `--bg-2` |
 | today | 9.5rem | `--bg-2` |
 | proposal | intrinsic on arrival, constant after (only its answer row swaps) | `--bg-2` (Forth `.b.ask`) |
 | market | 16.5rem | `--bg-2` |
@@ -418,51 +418,26 @@ bubble --bg-2, 352 × 384
 - **Confirmed:** answer row swaps to outcome "✓ Losses go to S&P 500 (VOO)." (check icon `--money`); then unselected rows dim to 0.45 over `--move`; rows become inert.
 - Fund copy (server owns it, suggested): VOO "The 500 biggest US companies." · QQQ "The 100 biggest Nasdaq companies, tech-heavy." · SOXX "US chipmakers. Big swings both ways." · DRAM "Memory chip makers. Launched Apr 2026." · Cash "High-yield savings. No swings."
 
-### 3.3 Goal fill
+### 3.3 Goals (ring + priority stack)
+
+Goals are a priority list (`state.goals`): sweeps fill the first unfinished goal, overflow rolls to the next, so a queued goal's date counts the goals ahead of it. The visual has to work for anything (a phone, a trip, a fund), so it is not an object outline: it's **the goal ring** (`web/src/ring.ts` + `ring.css`), one component at three sizes.
 
 ```
-352 × 160, pad card-pad, grid: 4.5rem | 1fr, gap s3, align center
-┌──────┐  iPhone 17 Pro                    step−1 600
-│  ▬   │  64%                              .num.hero step-2
-│      │  $703 of $1,099                   step−2 muted, tabular
-│▒▒▒▒▒▒│  Arrives Nov 21                   step−1
-│▒▒▒▒▒▒│  +$12 tonight                     step−1 500 --money
-└──────┘
+352 × 160 card, pad card-pad, grid: 7rem | 1fr, gap s4, align center
+  ╭────╮    iPhone 17 Pro                    step−1 600
+ ╱ [] ╲   59%                              .num.hero step-2
+│ face │   $650 of $1,099                   step−2 muted, tabular
+ ╲    ╱   Saved by Oct 11                  step−1 (slot)
+  ╰────╯    +$95 from Oct 3                  step−1 500 --money
 ```
 
-**The glass:** an HTML phone outline whose well fills with `--money`. The level is `--p` (0–1).
-
-```css
-.glass {
-  position: relative; width: 4.5rem; height: 8.75rem; box-sizing: border-box;
-  border: 2px solid var(--fg); border-radius: 1.125rem; padding: 3px;
-}
-.glass::before {                        /* the island, above the liquid */
-  content: ""; position: absolute; z-index: 1; top: 8px; left: 50%; translate: -50% 0;
-  width: 1.25rem; height: 0.3125rem; border-radius: 999px; background: var(--fg);
-}
-.glass .well { position: relative; height: 100%; overflow: hidden; border-radius: calc(1.125rem - 2px - 3px); }
-.glass .liquid {
-  position: absolute; inset: 0; background: var(--money);
-  transform: translateY(calc((1 - var(--p)) * 100%));
-  transition: transform var(--t-data) var(--ease-in-out);
-}
-.glass .wave {                          /* inline <svg viewBox="0 0 120 6" preserveAspectRatio="none"> */
-  position: absolute; bottom: calc(100% - 1px); left: 0; width: 200%; height: 6px;
-  fill: var(--money); stroke: none; scale: 1 0.35; transform-origin: bottom;
-}
-.glass.filling .wave { animation: slosh var(--t-data) linear; }
-@keyframes slosh {
-  20% { scale: 1 1; }
-  to  { translate: -50% 0; scale: 1 0.35; }
-}
-```
-
-Wave path: `M0 3 Q15 0 30 3 T60 3 T90 3 T120 3 V6 H0Z` (repeats every 60 units, so −50% loops seamlessly).
-
-- **Sequence on a sweep:** card lands → "+$12 tonight" pops (`scale 0.9 → 1` + opacity, `--t-spring`) → 200ms → liquid rises from old `--p` to new while `%` and "$703" roll with `--roll-dur: var(--t-data); --roll-ease: var(--ease-in-out)` (one idea, one motion) → "Arrives" date crossfades if it changed (slot, 120 + 200).
-- At 100%: date line reads "Ready to order"; the delta line becomes "Full". The proposal card that follows asks to buy.
-- Empty state (0%): liquid fully below; "Arrives" shows the projected date anyway.
+- **Ring:** SVG, `viewBox 0 0 100 100`, two circles r=43 `pathLength=100`, stroke-width 9 (scales with `--rs`). Track `color-mix(in srgb, var(--fg) 9%, transparent)`; arc `--money`, round caps, `stroke-dashoffset: calc((1 - var(--p)) * 100)` with `transition: stroke-dashoffset var(--t-data) var(--ease-in-out)`. `.nil` hides the arc at 0% (no cap dot). Rotated −90deg so it starts at 12 o'clock.
+- **Face:** the store's brand tile (`brands.ts`, `--bs: 44%` of the ring) when the goal is a thing he buys from a known brand (iPhone → Apple), else the goal's emoji at 34% of the ring.
+- **Sizes:** chat card 7rem · dashboard top goal 5.5rem · queued rows 2rem · Settings rows 2.75rem (2.5rem at 390).
+- **Sequence on a sweep:** card lands → "+$12 from Oct 4" pops (`--t-spring`) → 200ms → the arc sweeps from old `--p` to new while `%` and saved roll (`--roll-dur: var(--t-data)`; one idea) → date crossfades if it moved. Filling to 100% adds one settle spring on the ring (`--t-slow`).
+- **Complete:** a goal with a store reads "Ready to order", note "Full", and the Order it / Not yet row (proposal answer pattern); ordering marks it done and the next goal becomes active. A goal with nothing to buy (fund, trip) reads "Done", no ask.
+- **Stack (dashboard rail):** the first goal still in play large (ring 5.5rem + name / % step-2 / amounts / date), then the rest as dividered rows (no container): priority number step−2 muted | 2rem ring | name step−1 500 over "$0 of $2,400" step−2 muted | date step−2 muted right ("Ready to order" in `--money`). Ordered and done goals leave the stack. A new goal on top appears at its level, still (no fill).
+- **Settings → Goals:** one container of dividered rows: up/down (arrow icons) | priority (active in `--money`) | ring with the emoji as an input in its face | name input over "$650 saved · Saving now, by Oct 11" | price input ("$1,099", right-aligned) | remove. Inputs read as text until hover/focus (`--bg-2` well). Last row adds a goal (dashed track). Saves on blur/Enter; a reserved note line under the list says "Saved" / the refusal. Polls every 2s.
 
 ### 3.4 Today (morning)
 
@@ -562,7 +537,7 @@ Pool left     $612   │ └─────────────────�
 Days left       28   │ Oct 1                    Oct 15                   Oct 31
 To goal       $142   │ ███████████▌███████▌████▌▐█  allocation bar 0.5rem
                      │ ┌ rows ───────────────────────────────────────────────┐
-[glass] iPhone 17 Pro│ │ ■ S&P 500  VOO                 $820.00   +2.1%       │
+[ring]  iPhone 17 Pro│ │ ■ S&P 500  VOO                 $820.00   +2.1%       │
         64%          │ │ ■ Nasdaq-100 QQQ               $280.00   +3.4%       │
         $703 of $1,099│└─────────────────────────────────────────────────────┘
         Nov 21       │
@@ -574,7 +549,7 @@ To goal       $142   │ ███████████▌██████�
 
 - Grid: `grid-template-columns: 20rem minmax(0, 1fr); column-gap: var(--s5)`; rail separated by a 1px `--rule` vertical line (`border-right` on the rail, `padding-right: var(--s5)`). Right column: invested block, then `grid-template-columns: minmax(0, 1fr) 17rem; gap: var(--s5)` for spending | days.
 - "Today" is the one label above the hero: step−1 500 `--muted`, sentence case.
-- **Rail:** hero `.num.hero` step-4 (`$36`), sub-line step−1 `--muted`. Then key–value rows (dividered, no container border; label step−1 `--muted`, value step-0 500 tabular right). Then the goal: the same `.glass` component at 4.5rem with name / % (step-2) / amounts / date stacked beside it.
+- **Rail:** hero `.num.hero` step-4 (`$36`), sub-line step−1 `--muted`. Then key–value rows (dividered, no container border; label step−1 `--muted`, value step-0 500 tabular right). Then the goals stack (§3.3): the top goal's ring at 5.5rem with name / % (step-2) / amounts / date beside it, the queued goals as mini-ring rows under it.
 - **Invested:** h2 "Invested" left, total `.num` step-2 right with the month delta under it. Line chart below, allocation bar, then fund rows inside one `.rows` container (radius 14): swatch 0.625rem square radius 3px in the fund colour, name step-0 500 + ticker step−2 `--muted`, value tabular, change % step−1 (`--money` if up, `--muted` if down, with sign).
 - **Spending:** h2 "Spending"; rows (no container), top 6 categories by amount: name step−1 (6.5rem col) | bar | amount step−1 tabular right. Bar 6px tall, radius 3px, length relative to the largest; largest in `--fg`, others `color-mix(in srgb, var(--fg) 45%, transparent)`.
 - **Days (calendar):** h2 "Days"; weekday initials step−2 `--muted`; 7 columns of 2.25rem cells, gap 4px, radius 8px, date step−2 tabular centred. Fills: under budget `color-mix(in srgb, var(--money) 20%, var(--pane))`; over `color-mix(in srgb, var(--danger) 18%, var(--pane))`; no-spend `color-mix(in srgb, var(--amber) 30%, var(--pane))`; future days no fill, date `--muted`; today a 1.5px `--fg` inset ring. Legend under the grid: three 0.625rem swatches, each with its word ("Under", "Over", "No spend"), step−2.
@@ -677,7 +652,7 @@ Screenshot each item in **light and dark**, at **1440×900** and **390×844**, u
 - [ ] Blackjack: just dealt (hole card down) · after a hit · Dime's turn (buttons dimmed) · won · lost · bust · push mid-sweep. Suits crisp at 52px; "10" fits the index; shoe visible top-right.
 - [ ] Blackjack flip recorded at 0.25×: rotates on Y with depth, lifts 6px, back never shows through (backface hidden).
 - [ ] Funds: default (VOO selected, detail filled) · another row selected · confirmed (others dimmed). Arrow keys move selection; focus ring visible.
-- [ ] Goal: before sweep · mid-fill (screenshot at ~450ms) · after; liquid inside the rounded well with no corner bleed; island above liquid; 100% "Ready to order".
+- [ ] Goal: before sweep · mid-fill (screenshot at ~450ms) · after; arc starts at 12 o'clock, no cap dot at 0%; 100% "Ready to order" (store) or "Done" (fund); stack shows queued goals numbered.
 - [ ] Today: sunny, cloudy, stormy (force via seed); glyph word present; bills line one line on phone.
 - [ ] Proposal: open · approving (dots) · done · not now. Height identical across states.
 - [ ] Market: open · after a friend bet (bar moved) · your bet placed · resolved with payouts. Split bar 2px gap visible at 50/50 and at 90/10.

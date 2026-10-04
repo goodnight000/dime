@@ -1,0 +1,178 @@
+/* Settings → Goals (goals.ts). One container of dividered rows, the Settings grammar. Row:
+   up/down | priority | mini ring with the emoji input in its face | name over saved + date | price | remove.
+   Inputs read as text until hovered or focused (then the --bg-2 well the other fields use). */
+main.settings .goal-list .gr {
+  display: grid;
+  grid-template-columns: 1.75rem 1rem 2.75rem minmax(0, 1fr) 7rem 2.25rem;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 4.25rem;
+  padding: 0.6rem 0.75rem 0.6rem 0.5rem;
+  box-sizing: border-box;
+}
+main.settings .goal-list .ring {
+  --rs: 2.75rem;
+}
+main.settings .gr-move {
+  display: grid;
+  gap: 2px;
+}
+main.settings .gr-move .ib {
+  width: 1.75rem;
+  height: 1.25rem;
+}
+main.settings .gr-move .ib svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+main.settings .goal-list .ib {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color var(--quick), color var(--quick);
+}
+main.settings .goal-list .ib svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+main.settings .goal-list .ib:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+main.settings .goal-list .ib:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+main.settings .gr-n {
+  display: grid;
+  place-items: center;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+main.settings .gr.on .gr-n {
+  color: var(--money);
+}
+main.settings .gr-n svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+main.settings .gr-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+main.settings .goal-list input {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  color: var(--fg);
+  transition: background-color var(--quick);
+}
+main.settings .goal-list input:hover:not(:disabled),
+main.settings .goal-list input:focus {
+  background: var(--bg-2);
+  outline: none;
+}
+main.settings .goal-list input:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+}
+main.settings .goal-list input::placeholder {
+  color: var(--muted);
+}
+main.settings .gr-name {
+  width: 100%;
+  height: 1.75rem;
+  margin-left: -0.4rem !important;
+  padding: 0 0.4rem;
+  font-size: var(--step-0);
+  font-weight: 500;
+}
+main.settings .gr-meta {
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+main.settings .gr.on .gr-meta {
+  color: var(--fg);
+}
+main.settings .gr-emo {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 50% !important;
+  text-align: center;
+  font-size: 1.05rem !important;
+  line-height: 1;
+}
+main.settings .goal-list .ring .face {
+  width: 70%;
+  height: 70%;
+}
+main.settings .gr-price {
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-size: var(--step-0);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+main.settings .gr-price input {
+  width: 100%;
+  height: 2.25rem;
+  padding: 0 0.6rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+main.settings .gr.past .gr-name,
+main.settings .gr.past .gr-price {
+  color: var(--muted);
+}
+main.settings .gr.add .ring .track {
+  stroke-dasharray: 3 4;
+}
+main.settings .gr.add .add-go {
+  color: var(--money);
+}
+main.settings .g-note {
+  min-height: 1.35em; /* reserved: the note never moves the groups below */
+  margin: var(--s1) 0 0 0.25rem;
+  font-size: var(--step--1);
+  line-height: 1.35;
+  color: var(--money);
+}
+main.settings .g-note.err {
+  color: var(--danger);
+}
+@media (max-width: 759px) {
+  main.settings .goal-list .gr {
+    grid-template-columns: 1.75rem 2.5rem minmax(0, 1fr) 5.5rem 2rem;
+    gap: var(--s1);
+    padding-left: 0.25rem;
+  }
+  main.settings .goal-list .ring {
+    --rs: 2.5rem;
+  }
+  main.settings .gr-n {
+    display: none;
+  }
+  main.settings .goal-list .ib {
+    width: 2rem;
+  }
+}

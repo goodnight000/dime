@@ -3,8 +3,10 @@ import { state, reset, type Thread, type Message } from "./state.ts";
 import { now } from "./clock.ts";
 import * as money from "./money.ts";
 import { summary } from "./summary.ts";
+import { calendar } from "./calendar.ts";
 import * as accounts from "./accounts.ts";
 import { settings, update as updateSettings } from "./settings.ts";
+import * as goals from "./goals.ts";
 import { run } from "./apps/index.ts";
 import { refresh as refreshToday } from "./apps/today.ts";
 import { post, reply } from "./voice.ts";
@@ -14,6 +16,14 @@ import { friendSwipe, typing as groupTyper } from "./friends.ts";
 import { EVENTS, categorize } from "./simulate.ts";
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
+const goalWrite = async (f: () => Promise<unknown>) => {
+  try {
+    await f();
+    return json({ goals: goals.list() });
+  } catch (e) {
+    return bad((e as Error).message);
+  }
+};
 const bad = (error: string, status = 400) => json({ error }, status);
 const thread = (v: unknown): Thread => (v === "group" ? "group" : "dime");
 const body = (req: Request) => req.json().catch(() => ({})) as Promise<any>;
@@ -61,7 +71,7 @@ const demo: Record<string, (b: any) => unknown> = {
   },
   // Payoff: top the goal up to one sweep short of the price, then midnight sweeps the rest in.
   "fill-goal": () => {
-    const g = state.goal;
+    const g = money.activeGoal(state);
     g.saved = Math.max(g.saved, g.price - money.today(state, now()));
     return midnight();
   },
@@ -75,7 +85,7 @@ const logDemo = (text: string, error = false) => {
 };
 function demoState() {
   const at = now();
-  const g = state.goal;
+  const g = money.activeGoal(state);
   const said = state.messages.slice(-10).map((m) => {
     const who = m.direction === "in" ? "Charles" : (m.sender ?? "Dime");
     const what = m.app ? `[${state.apps[m.app]?.kind ?? "card"}]` : m.body;
@@ -143,6 +153,10 @@ const server = Bun.serve({
     },
 
     "/api/summary": () => json(summary()),
+    "/api/calendar": (req) => {
+      const m = new URL(req.url).searchParams.get("month");
+      return json(calendar(state, now(), m && /^\d{4}-\d{2}$/.test(m) ? m : undefined));
+    },
 
     "/api/settings": {
       GET: () => json(settings()),
@@ -153,6 +167,17 @@ const server = Bun.serve({
           return bad((e as Error).message);
         }
       },
+    },
+
+    // Goals (server/goals.ts): every write answers with the whole list, so the page redraws from one shape.
+    "/api/goals": {
+      GET: () => json({ goals: goals.list() }),
+      POST: (req) => goalWrite(async () => goals.add(await body(req))),
+      PUT: (req) => goalWrite(async () => goals.reorder((await body(req)).order)),
+    },
+    "/api/goals/:id": {
+      PATCH: (req) => goalWrite(async () => goals.update(req.params.id, await body(req))),
+      DELETE: (req) => goalWrite(async () => goals.remove(req.params.id)),
     },
 
     "/api/accounts": () => json(accounts.accounts()),

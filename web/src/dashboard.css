@@ -93,12 +93,16 @@ main.dash .kv dd {
   font-weight: 500;
 }
 
-/* Goal: the glass and its numbers beside it. */
+/* Goals: the stack. The goal on top as a 5.5rem ring with its numbers beside it; the queue under it
+   as dividered rows (the key-values' grammar): priority number, mini ring, name over amounts, date. */
 main.dash .goal {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: var(--s3);
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  column-gap: var(--s3);
   align-items: center;
+}
+main.dash .goal > .ring {
+  --rs: 5.5rem;
 }
 main.dash .gt {
   display: grid;
@@ -129,62 +133,55 @@ main.dash .eta {
   font-size: var(--step--2);
   color: var(--muted);
 }
-main.dash .glass {
-  position: relative;
-  width: 4.5rem;
-  height: 8.75rem;
-  box-sizing: border-box;
-  border: 2px solid var(--fg);
-  border-radius: 1.125rem;
-  padding: 3px;
+main.dash .gq {
+  grid-column: 1 / -1;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  list-style: none;
 }
-main.dash .glass::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  top: 8px;
-  left: 50%;
-  translate: -50% 0;
-  width: 1.25rem;
-  height: 0.3125rem;
-  border-radius: 999px;
-  background: var(--fg);
+main.dash .gq:empty {
+  display: none;
 }
-main.dash .glass .well {
-  position: relative;
-  height: 100%;
+main.dash .gq li {
+  display: grid;
+  grid-template-columns: 0.75rem 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 3rem;
+  border-top: 1px solid var(--rule);
+}
+main.dash .gq .ring {
+  --rs: 2rem;
+}
+main.dash .gq .emo {
+  font-size: calc(var(--rs) * 0.42);
+}
+main.dash .gn {
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+main.dash .gqt {
+  display: grid;
+  min-width: 0;
+  line-height: 1.3;
+}
+main.dash .gqt b {
+  font-size: var(--step--1);
+  font-weight: 500;
   overflow: hidden;
-  border-radius: calc(1.125rem - 2px - 3px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-main.dash .glass .liquid {
-  position: absolute;
-  inset: 0;
-  background: var(--money);
-  transform: translateY(calc((1 - var(--p)) * 100%));
-  transition: transform var(--t-data) var(--ease-in-out);
+main.dash .gqt small,
+main.dash .gd {
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
-main.dash .glass .wave {
-  position: absolute;
-  bottom: calc(100% - 1px);
-  left: 0;
-  width: 200%;
-  height: 6px;
-  fill: var(--money);
-  stroke: none;
-  scale: 1 0.35;
-  transform-origin: bottom;
-}
-main.dash .glass.filling .wave {
-  animation: dash-slosh var(--t-data) linear;
-}
-@keyframes dash-slosh {
-  20% {
-    scale: 1 1;
-  }
-  to {
-    translate: -50% 0;
-    scale: 1 0.35;
-  }
+main.dash .gd.ready {
+  color: var(--money);
+  font-weight: 500;
 }
 
 /* ---- Work: invested ---- */
@@ -394,7 +391,7 @@ main.dash .rows .empty {
 /* ---- Spending | Days ---- */
 main.dash .pair {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto; /* the calendar's own width, ~17rem */
+  grid-template-columns: minmax(0, 1fr); /* the calendar moved to the top of the work column */
   gap: var(--s5);
 }
 main.dash .bars {
@@ -454,60 +451,10 @@ main.dash .bars li.top .bar i {
   background: var(--fg);
 }
 
-main.dash .wk,
-main.dash .cal {
-  display: grid;
-  grid-template-columns: repeat(7, 2.25rem);
-  gap: 4px;
-}
-main.dash .wk {
-  margin-top: var(--s3);
-  margin-bottom: var(--s1);
-}
-main.dash .wk span {
-  text-align: center;
-  font-size: var(--step--2);
-  color: var(--muted);
-}
-main.dash .cal .c {
-  display: grid;
-  place-items: center;
-  height: 2.25rem;
-  border-radius: 8px;
-  font-size: var(--step--2);
-  font-variant-numeric: tabular-nums;
-  transition: background-color var(--quick);
-}
-main.dash .c.under,
-main.dash .legend .under {
-  background: color-mix(in srgb, var(--money) 20%, var(--pane));
-}
-main.dash .c.over,
-main.dash .legend .over {
-  background: color-mix(in srgb, var(--danger) 18%, var(--pane));
-}
-main.dash .c.none,
-main.dash .legend .none {
-  background: color-mix(in srgb, var(--amber) 30%, var(--pane));
-}
-main.dash .c.future,
-main.dash .c.prev {
-  color: var(--muted);
-}
-/* Last month's filled days stay legible on their tint: quieter than this month's, not muted. */
-main.dash .c.prev:is(.under, .over, .none) {
-  color: color-mix(in srgb, var(--fg) 70%, transparent);
-}
-/* A 900px-tall screen: the calendar's legend stays above the fold. */
+/* A 900px-tall screen: the invested block stays compact under the calendar. */
 @media (min-width: 760px) and (max-height: 920px) {
   main.dash .work {
     gap: var(--s4);
-  }
-  main.dash .cal .c {
-    height: 2rem;
-  }
-  main.dash .wk {
-    margin-top: var(--s2);
   }
   /* Room for a third and fourth fund row before the legend reaches the fold. */
   main.dash .chart {
@@ -521,28 +468,6 @@ main.dash .c.prev:is(.under, .over, .none) {
     padding-block: var(--s1);
   }
 }
-main.dash .c.now {
-  box-shadow: inset 0 0 0 1.5px var(--fg);
-}
-main.dash .legend {
-  list-style: none;
-  margin: var(--s3) 0 0;
-  padding: 0;
-  display: flex;
-  gap: var(--s3);
-  font-size: var(--step--2);
-}
-main.dash .legend li {
-  display: flex;
-  align-items: center;
-  gap: var(--s1);
-}
-main.dash .legend i {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 3px;
-}
-
 /* Poll failing: figures stay, quietly dimmed until the next good poll. */
 main.dash .board.stale .work,
 main.dash .board.stale .rail {
@@ -587,10 +512,6 @@ main.dash .board.stale .rail {
   }
   main.dash .fund .nm small {
     display: none;
-  }
-  main.dash .wk,
-  main.dash .cal {
-    grid-template-columns: repeat(7, minmax(0, 2.75rem));
   }
 }
 

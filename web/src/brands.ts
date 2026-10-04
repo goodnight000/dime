@@ -50,7 +50,7 @@ const IMG: Record<string, boolean> = {
   burmasuperstar: false, chipotle: false, clipper: false, delfina: false, fillmore: false, hudson: false,
   ishares: false, katz: false, kinkhao: false, mixt: false, pge: false, propertyfood: false, roundhill: false,
   sightglass: false, smugglerscove: false, souvla: false, tacolicious: false, traderjoes: false,
-  venmo: false, viacarota: false, walgreens: false, wholefoods: false,
+  nobu: false, venmo: false, viacarota: false, walgreens: false, wholefoods: false,
 };
 /** App icons that carry their own rounded corners: drawn a touch larger so ours crop them. */
 const ROUNDED = new Set(["calm", "omny"]);

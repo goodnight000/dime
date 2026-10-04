@@ -5,6 +5,7 @@ import * as money from "./money.ts"; // first: seedHistory runs while state.ts i
 import { state, type State, type FundId } from "./state.ts";
 import { FUNDS } from "./funds-data.ts";
 import { now } from "./clock.ts";
+import { list as goalList } from "./goals.ts";
 
 const DAY = 86_400_000;
 const sum = (xs: { amount: number }[]) => xs.reduce((t, x) => t + x.amount, 0);
@@ -138,7 +139,7 @@ export function summary() {
       swept: sum(state.sweeps.filter((s) => new Date(s.at).toDateString() === key)),
     });
   }
-  const g = state.goal;
+  const g = money.activeGoal(state);
   return {
     now: at.toISOString(),
     month_name: at.toLocaleString("en-US", { month: "long" }),
@@ -149,6 +150,7 @@ export function summary() {
     days_left: money.daysLeft(at),
     to_goal: Math.max(0, g.price - g.saved),
     goal: { ...g, pct: money.pct(state), pace: money.pace(state, at), eta: money.eta(state, at), eta_date: ymd(money.etaDate(state, at)) },
+    goals: goalList(), // the priority stack (server/goals.ts): pct, status, queue-aware dates
     invested: invested(state, at),
     spending: Object.entries(byCategory)
       .map(([category, amount]) => ({ category, label: label(category), amount }))

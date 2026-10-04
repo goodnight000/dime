@@ -14,6 +14,7 @@ import { accounts } from "../accounts.ts";
 import { summary } from "../summary.ts";
 import { usd } from "../voice.ts";
 import { update as updateSettings } from "../settings.ts";
+import { list as goalList, add as addGoal, update as updateGoal, reorder as reorderGoals, remove as removeGoal, find as findGoal } from "../goals.ts";
 
 const DAY = 86_400_000;
 const date = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -48,6 +49,27 @@ function tool<P extends ReturnType<typeof Type.Object>>(
 }
 
 const none = Type.Object({});
+/** Money sitting in goals not yet spent (ordered goals were paid out). */
+const goalFund = () => state.goals.reduce((t, g) => t + (g.done ? 0 : g.saved), 0);
+/** One goal as the agent sees it after a change: where it sits in line and when it lands. */
+function goalState(gid: string) {
+  const all = goalList();
+  const i = all.findIndex((g) => g.id === gid);
+  const g = all[i];
+  return { priority: i + 1, of: all.length, name: g.name, emoji: g.emoji, price: g.price, saved: g.saved, pct: g.pct, status: g.status,
+    ahead: all.slice(0, i).filter((x) => x.status === "active" || x.status === "queued").map((x) => x.name),
+    pace_per_day: Math.round(money.pace(state, now())), eta_days: g.eta_days, eta_date: date(money.etaDate(state, now(), g.eta_days)) };
+}
+/** Bumping the goal he's saving for now needs his yes. `top`: the goal that would be first (a key,
+ *  null for a new one), undefined = no change at the top. */
+function guardTop(top: string | null | undefined, confirmed?: boolean, newName?: string) {
+  if (top === undefined || confirmed) return;
+  const cur = money.activeGoal(state);
+  if (cur.done || cur.saved >= cur.price) return;
+  if (top !== null && findGoal(top)?.id === cur.id) return;
+  const at = now();
+  throw new Error(`${cur.name} is ${money.pctOf(cur)}% saved and lands in ${money.etaOf(state, at, cur.id)} days. Ask him first: put ${newName ?? top} ahead of it (${cur.name} keeps its $${cur.saved} and waits), or after it? Don't call this again this turn.`);
+}
 
 export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
   const list: AgentTool<any>[] = [
@@ -63,13 +85,14 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
         days_left_in_month: money.daysLeft(at),
       };
     }),
-    tool("get_goal", "The savings goal: price, saved, percent, daily pace, and when it lands.", none, () => {
+    tool("get_goal", "His savings goals in priority order: each one's price, saved, percent, status (active = saving now, queued = waits its turn, ready = full and can be ordered, ordered, done), and when it lands. Sweeps fill the active goal first, then roll to the next, so a queued goal's date counts the ones ahead of it. Also the daily pace.", none, () => {
       const at = now();
-      const g = state.goal;
-      const eta = money.eta(state, at);
       return {
-        name: g.name, emoji: g.emoji, price: g.price, saved: g.saved, left_to_save: cents(g.price - g.saved),
-        pct: money.pct(state), pace_per_day: cents(money.pace(state, at)), eta_days: eta, eta_date: date(money.etaDate(state, at, eta)),
+        pace_per_day: cents(money.pace(state, at)),
+        goals: goalList().map((g, i) => ({
+          priority: i + 1, id: g.id, name: g.name, emoji: g.emoji, price: g.price, saved: g.saved, left_to_save: cents(Math.max(0, g.price - g.saved)),
+          pct: g.pct, status: g.status, ...(g.store ? { buy_from: g.store } : {}), eta_days: g.eta_days, eta_date: date(money.etaDate(state, at, g.eta_days)),
+        })),
       };
     }),
     tool(
@@ -81,7 +104,7 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
         const eta = money.eta(state, at);
         const later = money.delay(state, at, amount);
         return {
-          amount, goal: state.goal.name, goal_days_later: later,
+          amount, goal: money.activeGoal(state).name, goal_days_later: later,
           goal_date_if_skipped: date(money.etaDate(state, at, eta)), goal_date_if_bought: date(money.etaDate(state, at, eta + later)),
           hours_of_work: Math.round((amount / state.user.hourly) * 10) / 10,
           today_left: money.today(state, at), fits_today: amount <= money.today(state, at),
@@ -156,8 +179,8 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       const { accounts: list } = accounts();
       const [checking, savings, invested] = [latest("checking"), latest("savings"), summary().invested.total];
       return {
-        checking, savings, invested, goal_fund: state.goal.saved,
-        total: cents((checking ?? 0) + (savings ?? 0) + invested + state.goal.saved), no_debts_tracked: true,
+        checking, savings, invested, goal_fund: goalFund(),
+        total: cents((checking ?? 0) + (savings ?? 0) + invested + goalFund()), no_debts_tracked: true,
         connected: list.filter((a) => a.connected).map((a) => a.name), not_connected: list.filter((a) => !a.connected).map((a) => a.name),
       };
     }),
@@ -201,7 +224,7 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
         if (from === "today" && amount > left) throw new Error(`Only $${left} left today. Offer from checking instead, or a smaller amount.`);
         const bal = state.balances.filter((b) => b.account === "checking").sort((a, b) => a.at.localeCompare(b.at)).at(-1)?.balance ?? 0;
         if (from === "checking" && amount > bal) throw new Error(`Checking only has $${bal}.`);
-        const name = to === "goal" ? state.goal.name : fund(to).name;
+        const name = to === "goal" ? money.activeGoal(state).name : fund(to).name;
         const source = from === "today" ? "today's number" : "checking";
         apps.push(open("proposal", {
           find: "move", key: `move:${crypto.randomUUID()}`, amount, from, to,
@@ -237,24 +260,57 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       return { sent: true, current_fund: state.user.fund };
     }),
     tool(
-      "set_goal",
-      "Set his savings goal (there is one at a time). Use after a goal is ordered, or when he clearly says to switch. If the current goal isn't finished and he just mentions wanting something else, ask first: switch now (what's saved carries over) or start it once the current one lands. Price in dollars.",
+      "add_goal",
+      "Add a savings goal to his list. Call it as soon as he asks to add or save for something (saying you'll add it doesn't add it). Goals fill in priority order: the first unfinished one gets every sweep, overflow rolls to the next. Default position is last (it starts once the ones ahead fill); \"after the iPhone\" = the iPhone's priority + 1. position 1 jumps it ahead of the goal he's saving for now: only once he has said yes to that (ask: first, or after the current one?). Price in dollars.",
       Type.Object({
         name: Type.String({ description: "Short name, e.g. 'Tokyo trip'" }),
         price: Type.Number(),
         emoji: Type.String({ description: "One emoji for it" }),
-        switch_now: Type.Optional(Type.Boolean({ description: "true only once he has said yes to replacing an unfinished goal" })),
+        store: Type.Optional(Type.String({ description: "Only for a thing he'd buy: where to order it (Apple, Nike). Omit for trips, funds, experiences." })),
+        position: Type.Optional(Type.Number({ description: "1-based priority. Omit = last." })),
+        confirmed: Type.Optional(Type.Boolean({ description: "true once he said yes to putting it ahead of an unfinished goal" })),
       }),
-      ({ name, price, emoji, switch_now }) => {
-        const at = now();
-        const g = state.goal;
-        if (g.saved > 0 && g.saved < g.price && !switch_now && g.name !== name)
-          throw new Error(`${g.name} is ${money.pct(state)}% saved and lands in ${money.eta(state, at)} days. Ask him first: switch to ${name} now (the $${g.saved} carries over) or start it once ${g.name} lands? Don't call set_goal again this turn.`);
-        state.goal = { name, price, saved: Math.min(state.goal.saved, price), emoji };
-        const eta = money.eta(state, at);
-        const app = open("goal", { delta: 0 });
-        apps.push(app);
-        return { name, price, saved: state.goal.saved, pct: money.pct(state), pace_per_day: Math.round(money.pace(state, at)), eta_days: eta, eta_date: date(money.etaDate(state, at, eta)) };
+      (p) => {
+        guardTop(p.position === 1 ? null : undefined, p.confirmed, p.name);
+        const g = addGoal(p);
+        apps.push(open("goal", { id: g.id, delta: 0 }));
+        return goalState(g.id);
+      },
+    ),
+    tool(
+      "update_goal",
+      "Change a goal's name, price, emoji or store. Find it by id or name. What it saved stays (any surplus over a lower price rolls to the next goal).",
+      Type.Object({
+        goal: Type.String({ description: "Its id or name" }),
+        name: Type.Optional(Type.String()),
+        price: Type.Optional(Type.Number()),
+        emoji: Type.Optional(Type.String()),
+        store: Type.Optional(Type.String()),
+      }),
+      ({ goal, ...fields }) => goalState(updateGoal(goal, fields).id),
+    ),
+    tool(
+      "reorder_goals",
+      "Reprioritize his goals: list them (ids or names) first to last; any left out keep their order after. Each goal keeps what it saved; new sweeps go to the new first one. If that bumps an unfinished goal he's saving for now, ask first and pass confirmed only after he says yes.",
+      Type.Object({
+        order: Type.Array(Type.String()),
+        confirmed: Type.Optional(Type.Boolean({ description: "true once he said yes to bumping the goal he's saving for now" })),
+      }),
+      ({ order, confirmed }: { order: string[]; confirmed?: boolean }) => {
+        for (const k of order) if (!findGoal(k)) throw new Error(`No goal called ${k}. get_goal lists them.`);
+        guardTop(order[0] ?? null, confirmed);
+        reorderGoals(order);
+        apps.push(open("goal", { delta: 0 }));
+        return { goals: goalList().map((g, i) => ({ priority: i + 1, name: g.name, pct: g.pct, status: g.status, eta_date: date(money.etaDate(state, now(), g.eta_days)) })) };
+      },
+    ),
+    tool(
+      "remove_goal",
+      "Remove a goal he no longer wants (by id or name). What it had saved rolls to the next goals. He must keep at least one unfinished goal.",
+      Type.Object({ goal: Type.String({ description: "Its id or name" }) }),
+      ({ goal }) => {
+        const g = removeGoal(goal);
+        return { removed: g.name, goals: goalList().map((x, i) => ({ priority: i + 1, name: x.name, saved: x.saved, pct: x.pct, status: x.status })) };
       },
     ),
     tool(
