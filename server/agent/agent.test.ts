@@ -101,11 +101,11 @@ test("events: model words with the facts' numbers, template when a number is off
     const ok = await swipe(`matcha again? ${left().replace(/\d+/, (d) => String(Number(d) - 7))} left today`);
     expect(ok[0]).toBe(`matcha again? ${left()} left today`);
     const off = await swipe("matcha again? $41 left today");
-    expect(off[0]).toBe(`Blue Bottle $7. ${left()} left today.`);
+    expect(off[0]).toBe(`Blue Bottle $7. ${left()} left today`);
   } finally {
     delete process.env.NEON_AI_GATEWAY_URL;
     delete process.env.NEON_AI_GATEWAY_KEY;
   }
   const out = await swipe("never asked");
-  expect(out[0]).toBe(`Blue Bottle $7. ${left()} left today.`);
+  expect(out[0]).toBe(`Blue Bottle $7. ${left()} left today`);
 }, 20_000);

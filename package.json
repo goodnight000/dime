@@ -10,7 +10,8 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "1.0.2",
     "@earendil-works/pi-ai": "1.0.2",
-    "charade-icons": "file:./vendor/charade-icons"
+    "charade-icons": "file:./vendor/charade-icons",
+    "simple-icons": "^16.34.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

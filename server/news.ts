@@ -69,23 +69,26 @@ export function topicOf(merchant: string, category = ""): Topic | null {
   return null;
 }
 
-type Hit = { title: string; url: string };
+type Hit = { title: string; url: string; snippet?: string; published?: string };
 const NEWS_SITES = ["reuters.com", "apnews.com", "cnbc.com", "bloomberg.com", "wsj.com", "nytimes.com", "marketwatch.com",
   "axios.com", "businessinsider.com", "fortune.com", "theverge.com", "techcrunch.com", "npr.org", "bbc.com", "cnn.com",
   "washingtonpost.com", "theguardian.com", "barrons.com", "finance.yahoo.com"];
-const cache = new Map<string, { at: number; hits: Hit[] }>(); // ponytail: no eviction, 8 queries max
+const cache = new Map<string, { at: number; hits: Hit[] }>(); // ponytail: no eviction; fine for a demo session
 const used = new Set<string>(); // facts and URLs already said, so Dime doesn't repeat itself
 
-async function exa(topic: Topic): Promise<Hit[]> {
+const exa = (topic: Topic) => exaSearch(QUERY[topic]);
+
+/** Recent news for any query (Dime's search_news tool, and the topic facts above). */
+export async function exaSearch(query: string): Promise<Hit[]> {
   const key = process.env.EXA_API_KEY;
   if (!key) return [];
-  const hit = cache.get(topic);
+  const hit = cache.get(query);
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.hits;
   const res = await fetch("https://api.exa.ai/search", {
     method: "POST",
     headers: { "x-api-key": key, "content-type": "application/json" },
     body: JSON.stringify({
-      query: QUERY[topic],
+      query,
       type: "fast",
       category: "news",
       numResults: 6,
@@ -96,11 +99,12 @@ async function exa(topic: Topic): Promise<Hit[]> {
     signal: AbortSignal.timeout(2500),
   });
   if (!res.ok) throw new Error(`exa ${res.status}`);
-  const data = (await res.json()) as { results?: { title?: string; url?: string }[] };
+  const data = (await res.json()) as { results?: { title?: string; url?: string; highlights?: string[]; publishedDate?: string }[] };
   const hits = (data.results ?? [])
     .filter((r) => r.url && r.title && r.title.length > 20)
-    .map((r) => ({ title: r.title!.trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/, ""), url: r.url! })); // drop " | Site"
-  cache.set(topic, { at: Date.now(), hits });
+    .map((r) => ({ title: r.title!.trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/, ""), url: r.url!, // drop " | Site"
+      snippet: r.highlights?.[0]?.trim(), published: r.publishedDate?.slice(0, 10) }));
+  cache.set(query, { at: Date.now(), hits });
   return hits;
 }
 

@@ -27,11 +27,11 @@
   border-top: 1px solid var(--rule);
 }
 .fp-row[aria-checked="true"] {
-  background: color-mix(in srgb, var(--blue) 9%, var(--pane));
+  background: color-mix(in srgb, var(--blue) 9%, var(--inset)); /* off the list, not the pane: lighter than the card in dark */
 }
 @media (hover: hover) and (pointer: fine) {
   .fp:not(.decided) .fp-row[aria-checked="false"]:hover {
-    background: color-mix(in srgb, var(--fg) 4%, var(--pane));
+    background: color-mix(in srgb, var(--fg) 4%, var(--inset));
   }
   .fp-answer > button:hover {
     background: color-mix(in srgb, var(--fg) 6%, transparent);

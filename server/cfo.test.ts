@@ -16,8 +16,8 @@ const bodies = () => state.messages.filter((m) => m.thread === "dime").map((m) =
 test("scan proposes three finds, nothing moves before Approve, a rescan doesn't duplicate", async () => {
   const ledger = state.ledger.length;
   await cfoScan();
-  expect(cards().map((a) => a.state.find)).toEqual(["comcast", "hulu", "idle"]);
-  expect(bodies()).toContain("found 3 things 👀 cards below");
+  expect(cards().map((a) => a.state.key)).toEqual(["bill:Comcast", "unused:Hulu", "idle"]);
+  expect(bodies()).toContain("found 3 things 👀");
   expect(state.ledger.length).toBe(ledger);
   await cfoScan();
   expect(cards().length).toBe(3);
@@ -26,8 +26,8 @@ test("scan proposes three finds, nothing moves before Approve, a rescan doesn't 
 test("Not now answers in place; idle with a fund lands $2,000 in the ledger", async () => {
   state.user.fund = "VOO";
   await cfoScan();
-  await run(byFind("hulu").id, "decline", {});
-  expect(byFind("hulu").state.status).toBe("declined");
+  await run(byFind("unused").id, "decline", {});
+  expect(byFind("unused").state.status).toBe("declined");
   await run(byFind("idle").id, "approve", {});
   expect(byFind("idle").state.status).toBe("working");
   await Bun.sleep(1600);

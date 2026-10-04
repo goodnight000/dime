@@ -8,6 +8,7 @@ import { SKY, type Weather } from "./apps/today.ts";
 import { speak, usd, day } from "./voice.ts";
 import { dropFact, topicOf, morningTopic } from "./news.ts";
 import { settleAtMidnight } from "./friends.ts";
+import { bank, flag, unusual } from "./simulate.ts";
 
 /** 8:00 local: today's number, as a line and a `today` card. */
 export function morning() {
@@ -25,20 +26,24 @@ export function morning() {
 export function purchase(input: Pick<Txn, "merchant" | "amount" | "category"> & Partial<Txn>) {
   const txn: Txn = { id: id(), at: now().toISOString(), kind: "spend", ...input };
   state.txns.push(txn);
+  bank("checking", txn.kind === "income" || txn.kind === "refund" ? txn.amount : -txn.amount);
   if (txn.kind !== "spend" || txn.covered) return;
+  const flagged = flag(txn); // a double charge or a charge that isn't him: Dime asks instead
+  if (flagged) return flagged;
+  const odd = unusual(txn);
   const at = now();
   const left = money.today(state, at);
   const over = money.over(state, at);
   const g = state.goal;
   const days = money.lag(state, at, txn.amount);
-  const swiped = `Charles just swiped ${txn.merchant} ${usd(txn.amount)} (${txn.category}).`;
+  const swiped = `Charles just swiped ${txn.merchant} ${usd(txn.amount)} (${txn.category}).${odd ? ` ${odd} Notice it in a few words.` : ""}`;
   if (over > 0)
     return dropFact(topicOf(txn.merchant, txn.category), speak("dime",
       `${swiped} That puts him ${usd(over)} over today's number, so tomorrow's number shrinks. Girl math: ${g.name} ${days} later.`,
-      [`${txn.merchant} ${usd(txn.amount)}. that's ${usd(over)} over today 😬`, `tomorrow gets a little smaller. ${g.name} ${days} later`]));
+      [`${txn.merchant} ${usd(txn.amount)}. that's ${usd(over)} over today 😬`, `tomorrow shrinks to cover it. ${g.name} ${days} later`]));
   return dropFact(topicOf(txn.merchant, txn.category), speak("dime",
     `${swiped} Left today: ${usd(left)}. Girl math: ${g.name} ${days} later.`,
-    [`${txn.merchant} ${usd(txn.amount)}. ${usd(left)} left today.`, `${g.name} ${days} later 💅`]));
+    [`${txn.merchant} ${usd(txn.amount)}. ${usd(left)} left today`, `that's the ${g.name} ${days} later 💅`]));
 }
 
 /** Midnight: the leftover moves to the goal, the clock rolls to the next day, Dime reports. */
@@ -57,7 +62,7 @@ export function midnight() {
   const closer = Math.max(1, before - money.eta(state, at));
   jump(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 30));
   const t = now();
-  const app = open("goal", { delta: left }); // fills from saved − left to saved (apps/goal.ts)
+  const app = open("goal", { delta: left, source: day(start) }); // fills from saved − left to saved (apps/goal.ts)
   const sweep = "Midnight sweep, end of the day. The goal card follows your words.";
   if (app.state.order) // the sweep filled the goal: the card asks to order it (apps/goal.ts)
     return speak("dime", `${sweep} ${left > 0 ? `${usd(left)} was left unspent and moved to the ${g.name}. ` : ""}That fills it: ${usd(g.price)} saved, 100%. Ask if he wants you to order it now.`,
@@ -69,6 +74,6 @@ export function midnight() {
   }
   if (over > 0)
     return speak("dime", `${sweep} He went ${usd(over)} over today, nothing to sweep. Tomorrow's number: ${usd(money.budget(state, t))}. ${g.name} now lands ${day(money.etaDate(state, t))}.`,
-      [`you went ${usd(over)} over. tomorrow: ${usd(money.budget(state, t))}`, `${g.name} moves to ${day(money.etaDate(state, t))}`, app]);
+      [`you went ${usd(over)} over 😬 tomorrow's ${usd(money.budget(state, t))}`, `${g.name} slides to ${day(money.etaDate(state, t))}`, app]);
   return speak("dime", `${sweep} He spent today's number exactly, nothing left, nothing over.`, [`spent it all, exactly. respect 🫡`, app]);
 }

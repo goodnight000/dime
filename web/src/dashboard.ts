@@ -9,6 +9,7 @@ import type { Screen } from "./main.ts";
 
 type Day = { date: string; day: number; kind: "under" | "over" | "none" | "future" | "today"; so_far: "under" | "over" | null };
 type Summary = {
+  now: string;
   month_name: string;
   today: number;
   over: number;
@@ -35,6 +36,7 @@ const local = (ymd: string) => {
   return new Date(y, m - 1, d);
 };
 const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const day = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
 const pct = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toFixed(1) + "%";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 const fine = matchMedia("(hover: hover) and (pointer: fine)");
@@ -42,12 +44,17 @@ const fine = matchMedia("(hover: hover) and (pointer: fine)");
 /** The line draws in once per session (§5 chart rules), not on every visit. */
 let drawnIn = false;
 
+/** The latest summary seen anywhere (main.ts's sidebar poll fetches the same one), so arriving
+ *  here paints real figures in the first frame instead of "—" that snap to numbers mid-rise. */
+let cached: Summary | null = null;
+export const prime = (s: unknown) => void (cached = s as Summary);
+
 const WAVE = `<svg class="wave" viewBox="0 0 120 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3 Q15 0 30 3 T60 3 T90 3 T120 3 V6 H0Z"/></svg>`;
 
 const dashboard: Screen = (main, _session, current) => {
   main.classList.add("dash");
   main.innerHTML = `
-    <header class="page-head"><h1 class="month">&nbsp;</h1></header>
+    <header class="page-head"><h1 class="date">&nbsp;</h1></header>
     <div class="board still">
       <aside class="rail">
         <section class="today" aria-label="Today">
@@ -99,7 +106,7 @@ const dashboard: Screen = (main, _session, current) => {
         </section>
         <div class="pair">
           <section class="spending" aria-labelledby="sp-h">
-            <h2 id="sp-h">Spending</h2>
+            <h2 id="sp-h">Spending <small class="range"></small></h2>
             <ul class="bars"></ul>
           </section>
           <section class="days" aria-labelledby="days-h">
@@ -265,7 +272,11 @@ const dashboard: Screen = (main, _session, current) => {
     const first = !last;
     const prevPct = last?.goal.pct;
     last = s;
-    $(".month").textContent = s.month_name;
+    // The page is today: the rail is today's money, the chart and calendar roll back from it, and
+    // Spending (the only month-to-date figure) carries its own range.
+    const at = new Date(s.now);
+    $(".date").textContent = day.format(at);
+    $(".range").textContent = at.getDate() === 1 ? short.format(at) : `${short.format(new Date(at.getFullYear(), at.getMonth(), 1))}–${at.getDate()}`;
     set("today", usd(s.today));
     set("budget", usd(s.budget));
     if (s.over > 0) set("over", usd(s.over));
@@ -283,7 +294,7 @@ const dashboard: Screen = (main, _session, current) => {
       set("gpct", `${s.goal.pct}%`);
       set("saved", usd(s.goal.saved));
       set("price", usd(s.goal.price));
-      $(".eta").textContent = s.goal.pct >= 100 ? "Ready to order" : `Arrives ${short.format(local(s.goal.eta_date))}`;
+      $(".eta").textContent = s.goal.pct >= 100 ? "Ready to order" : `Saved by ${short.format(local(s.goal.eta_date))}`;
       glass.style.setProperty("--p", String(s.goal.pct / 100));
       glass.classList.toggle("empty", s.goal.saved <= 0); // no crest on an empty glass (after ordering)
       if (!first && prevPct !== s.goal.pct && !reduced()) {
@@ -323,6 +334,7 @@ const dashboard: Screen = (main, _session, current) => {
     try {
       const s = await api<Summary>("GET", "/summary");
       if (!alive()) return ro.disconnect();
+      cached = s;
       draw(s);
       // First paint is still (§ rule 3): transitions stay off until the first data is laid out.
       if (board.classList.contains("still")) void board.offsetWidth, board.classList.remove("still");
@@ -333,6 +345,7 @@ const dashboard: Screen = (main, _session, current) => {
     clearTimeout(timer);
     timer = setTimeout(tick, 2000);
   };
+  if (cached) draw(cached); // still: the board keeps .still until the first fetched draw
   void tick();
 };
 export default dashboard;

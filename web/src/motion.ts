@@ -44,3 +44,21 @@ export function arrival(li: HTMLElement): number {
 export function swap(slot: HTMLElement, next: Element) {
   for (const c of slot.children) c.classList.toggle("on", c === next);
 }
+
+// Card sequences in flight. The sidebar's today line waits for them (main.ts), so a card resolves
+// first and the number rolls after: one motion at a time (§ rule 1).
+const playing = new Set<Promise<unknown>>();
+/** Registers a card sequence; returns it unchanged. */
+export function hold<P extends Promise<unknown>>(p: P): P {
+  playing.add(p);
+  void p.finally(() => playing.delete(p)).catch(() => {});
+  return p;
+}
+/** Resolves once no card sequence is playing (capped at 8s, so a stuck one can't freeze the sidebar). */
+export function quiet(): Promise<void> {
+  const cap = new Promise<void>((r) => setTimeout(r, 8000));
+  const drain = (async () => {
+    while (playing.size) await Promise.allSettled([...playing]);
+  })();
+  return Promise.race([drain, cap]);
+}

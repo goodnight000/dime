@@ -4,7 +4,7 @@
 // sweep and the new deal. Loaded from history (or under reduced motion) it draws the final state, still.
 import "./blackjack.css";
 import type { Act, Renderer } from "./index.ts";
-import { T, later, arrival, reduced, swap } from "../motion.ts";
+import { T, later, arrival, hold, reduced, swap } from "../motion.ts";
 import { roll, usd } from "../num.ts";
 
 type Card = { r: string; s: "S" | "H" | "D" | "C" };
@@ -267,10 +267,12 @@ function mount(el: HTMLElement, s: S): View {
 /** Queues a sequence; under reduced motion every change is drawn still. */
 function queue(v: View, run: () => Promise<void> | void, s: S) {
   v.running++;
-  v.queue = v.queue
-    .then(() => (reduced() ? still(v, s) : run()))
-    .catch(() => still(v, s))
-    .finally(() => v.running--);
+  v.queue = hold(
+    v.queue
+      .then(() => (reduced() ? still(v, s) : run()))
+      .catch(() => still(v, s))
+      .finally(() => v.running--),
+  );
 }
 
 async function press(v: View, action: string) {

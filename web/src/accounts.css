@@ -9,15 +9,11 @@ main.accounts .acct-split {
 main.accounts .acct-split h2 {
   font-size: var(--step-0);
   font-weight: 600;
-  line-height: 1.35; /* the services list's offset below assumes it */
-  margin: 0 0 var(--s2) var(--s1);
+  line-height: 1.35;
+  margin: 0 0 var(--s2); /* flush with the h1 and the rows, as on the dashboard */
 }
 main.accounts .rows {
   margin: 0;
-}
-/* The services list lines up with the rail's rows, under the rail's heading. */
-main.accounts .svcs {
-  margin-top: calc(var(--step-0) * 1.35 + var(--s2));
 }
 
 /* A service: glyph | name over subtitle | action (fixed width, so no state moves the row). */
@@ -182,9 +178,6 @@ main.accounts .txns > li.in {
 @media (max-width: 759px) {
   main.accounts .acct-split {
     grid-template-columns: minmax(0, 1fr);
-  }
-  main.accounts .svcs {
-    margin-top: 0;
   }
   main.accounts .svc {
     grid-template-columns: 2.5rem minmax(0, 1fr) 6.5rem;

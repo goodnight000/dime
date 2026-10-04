@@ -20,6 +20,12 @@ main.dash h2 {
   font-size: var(--step-0);
   font-weight: 600;
 }
+main.dash h2 .range {
+  margin-left: var(--s1);
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--muted);
+}
 
 /* ---- Rail ---- */
 main.dash .rail {
@@ -490,6 +496,17 @@ main.dash .c.prev:is(.under, .over, .none) {
   }
   main.dash .wk {
     margin-top: var(--s2);
+  }
+  /* Room for a third and fourth fund row before the legend reaches the fold. */
+  main.dash .chart {
+    height: 10rem;
+  }
+  main.dash .alloc {
+    margin-top: var(--s3);
+  }
+  main.dash .row.fund {
+    min-height: 2.75rem;
+    padding-block: var(--s1);
   }
 }
 main.dash .c.now {

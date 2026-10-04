@@ -10,10 +10,12 @@ import { speak, word, usd } from "./voice.ts";
 type Speaker = Friend | "Dime";
 // `then` changes a card when the line lands; `wait` holds the line back first (ms).
 // A promised body is Dime's line still being worded by the model: the typing indicator covers the wait.
-type Line = { who: Speaker; body?: string | Promise<string | undefined>; app?: App; then?: () => void; wait?: number };
+// `quick` is a bet landing on the card: short gaps and typing, so the whole table fills in ~5s.
+type Line = { who: Speaker; body?: string | Promise<string | undefined>; app?: App; then?: () => void; wait?: number; quick?: boolean };
 // How long a card takes to play a change (bubble lands, face pops, bar + pots roll): the next
 // typing indicator waits it out, so one thing moves at a time (DESIGN.md rule 1).
 const CARD_BEAT = 2000;
+const BET_BEAT = 800; // a bet is one face + one bar roll: the next bettor can start typing sooner
 
 // ---- cadence (DESIGN.md §4): one typer at a time, typing time from length, seeded gaps ----------
 
@@ -31,12 +33,12 @@ export function chat(lines: Line[]): Promise<void> {
   const run = async () => {
     const messages = state.messages;
     let last: Speaker | null = null;
-    let moved = false; // the previous line changed a card
+    let moved = 0; // how long the card change the previous line made still needs (ms)
     for (const l of lines) {
       if (state.messages !== messages) return;
       const known = typeof l.body === "string" ? l.body : "";
-      const gap = last && last !== l.who ? 500 + (hash(known) % 600) : 0;
-      const pause = Math.max(gap, moved ? CARD_BEAT : 0, l.wait ?? 0);
+      const gap = last && last !== l.who ? (l.quick ? 300 : 500) + (hash(known) % (l.quick ? 300 : 600)) : 0;
+      const pause = Math.max(gap, moved, l.wait ?? 0);
       if (pause) await Bun.sleep(pause);
       if (state.messages !== messages) return;
       typer = l.who;
@@ -46,10 +48,10 @@ export function chat(lines: Line[]): Promise<void> {
         const text = (await l.body) ?? "";
         if (!text && !l.app) {
           // The model said it in fewer bubbles than the template; what follows the words still happens.
-          if (l.then) (l.then(), (moved = true));
+          if (l.then) (l.then(), (moved = CARD_BEAT));
           continue;
         }
-        await Bun.sleep(Math.max(0, (l.app ? 900 : clamp(800, 25 * text.length, 2200)) - (Date.now() - started)));
+        await Bun.sleep(Math.max(0, (l.app ? 600 : l.quick ? 700 : clamp(800, 25 * text.length, 2200)) - (Date.now() - started)));
         if (state.messages !== messages) return;
         const sender = l.who === "Dime" ? {} : { sender: l.who };
         state.messages.push({
@@ -57,7 +59,7 @@ export function chat(lines: Line[]): Promise<void> {
           body: text, ...(l.app ? { app: l.app.id } : {}), created_at: now().toISOString(),
         });
         l.then?.();
-        moved = !!l.then;
+        moved = l.then ? (l.quick ? BET_BEAT : CARD_BEAT) : 0;
       } finally {
         state.typing.group = Math.max(0, state.typing.group - 1);
         typer = null;
@@ -166,7 +168,7 @@ function launch(rule: { subject: Friend; merchant: string; threshold: number }, 
   const others = FRIENDS.filter((f) => f !== rule.subject);
   const her = rule.subject === "Penny" || rule.subject === "Maya" ? "her" : "his";
   const subjectStake = 10;
-  const restate = `${rule.subject}, ${rule.merchant}, ${usd(rule.threshold)} or more by 11:59 PM. I settle it off ${her} card.`;
+  const restate = `ok the line: ${rule.subject} spends ${usd(rule.threshold)}+ at ${rule.merchant} by 11:59 PM. I settle it off ${her} card 🧾`;
   return chat([
     ...dime(
       `${intro.facts}New market: "${m.question}" Rule: ${rule.subject} spends ${usd(rule.threshold)} or more at ${rule.merchant} by 11:59 PM tonight; you settle it off ${her} card. Restate the rule so everyone agrees on it; the market card follows your words. No odds, stakes or terms beyond these.`,
@@ -176,6 +178,7 @@ function launch(rule: { subject: Friend; merchant: string; threshold: number }, 
     {
       who: rule.subject,
       body: CAST[rule.subject].optIn(ctx(subjectStake)),
+      quick: true,
       then: () => {
         if (m.status !== "open") return;
         m.optedIn = true;
@@ -186,6 +189,7 @@ function launch(rule: { subject: Friend; merchant: string; threshold: number }, 
     ...others.map((f) => ({
       who: f,
       body: CAST[f].bet(ctx(CAST[f].stake)),
+      quick: true,
       then: () => {
         if (m.status !== "open") return;
         place(app, { who: f, side: CAST[f].side, amount: CAST[f].stake });
@@ -211,7 +215,7 @@ function propose() {
     { subject: top.who, merchant: top.merchant, threshold },
     {
       facts: `Charles asked for a bet. You picked the juiciest habit: ${top.who} averages ${usd(avg)} a night on ${top.merchant}, so the line is double that. `,
-      lines: [`${top.who} averages ${usd(avg)} a night on ${top.merchant}. Line's at double.`],
+      lines: [`${top.who} averages ${usd(avg)} a night on ${top.merchant}. so the line's double 😈`],
     },
   );
 }
@@ -220,7 +224,7 @@ function propose() {
 export function groupReply(text: string): Promise<void> {
   const claim = parseClaim(text);
   if (claim && !claim.subject)
-    return chat(dime(`Charles wants a bet on ${claim.name}, who isn't in this group. You can only see Penny, Maya and Sam's cards, so no market.`, [`I can only see Penny, Maya and Sam's cards. ${claim.name} isn't in here.`]));
+    return chat(dime(`Charles wants a bet on ${claim.name}, who isn't in this group. You can only see Penny, Maya and Sam's cards, so no market.`, [`I can only see Penny, Maya and Sam's cards. ${claim.name} isn't in here 🤷`]));
   if (claim?.subject) {
     const rule = { subject: claim.subject, merchant: claim.merchant, threshold: claim.threshold };
     const dup = openMarkets().find((a) => {
@@ -228,13 +232,13 @@ export function groupReply(text: string): Promise<void> {
       return m.subject === rule.subject && m.merchant === rule.merchant;
     });
     if (dup)
-      return chat(dime(`Charles proposed a bet on ${rule.subject} and ${rule.merchant}, but there's already an open market on that today (up in the chat). No new market.`, [`There's already a market on ${rule.subject} and ${rule.merchant} today 👆`]));
+      return chat(dime(`Charles proposed a bet on ${rule.subject} and ${rule.merchant}, but there's already an open market on that today (up in the chat). No new market.`, [`already got a market on ${rule.subject} and ${rule.merchant} today 👆 scroll up`]));
     return launch(rule);
   }
   if (/\b(market|bet|odds|wager|line)\b/i.test(text)) return propose();
   const named = FRIENDS.find((f) => new RegExp(`\\b${f}\\b`, "i").test(text));
   if (!named && /\bdime\b/i.test(text))
-    return chat(dime(`Charles talked to you in the group: "${text}". In here you run spending bets on Penny, Maya and Sam; he hasn't made a claim you can turn into a market (like "will Penny spend $80 on DoorDash today?"). One short bubble.`, ["I just run the bets in here. Give me a claim 👀"]));
+    return chat(dime(`Charles talked to you in the group: "${text}". In here you run spending bets on Penny, Maya and Sam; he hasn't made a claim you can turn into a market (like "will Penny spend $80 on DoorDash today?"). One short bubble.`, ["I just run the bets in here. give me a claim 👀"]));
   const who = named ?? FRIENDS[hash(text) % 3];
   const lines = CAST[who].banter;
   return chat([{ who, body: lines[hash(text + who) % lines.length] }]);
@@ -259,11 +263,11 @@ function announce(app: App, dm = true, credit = () => {}) {
   const losers = m.payouts!.filter((p) => p.net < 0);
   const head =
     m.status === "yes"
-      ? `Yes wins. ${m.subject} hit ${usd(m.spent)} at ${m.merchant}.`
-      : `No wins. ${m.subject} held at ${usd(m.spent)} on ${m.merchant}.`;
+      ? `YES wins 🚨 ${m.subject} hit ${usd(m.spent)} at ${m.merchant}`
+      : `NO wins. ${m.subject} held at ${usd(m.spent)} on ${m.merchant} 🫡`;
   const pay = winners.length
-    ? `${winners.map((p) => `${p.who} +${usd(p.net)}`).join(", ")}.${losers.length ? ` ${names(losers.map((p) => p.who))}, pay up.` : ""}`
-    : "Nobody on the other side. Everyone gets their money back.";
+    ? `${winners.map((p) => `${p.who} +${usd(p.net)}`).join(", ")}${losers.length ? `. ${names(losers.map((p) => p.who))}, pay up 💸` : ""}`
+    : "nobody took the other side, so everyone gets their money back";
   const subjectWon = m.payouts!.find((p) => p.who === m.subject)!.net >= 0;
   const winner = winners.find((p) => p.who !== "Charles" && p.who !== m.subject);
   const results = m.payouts!.map((p) => `${p.who} ${p.net >= 0 ? "+" : "-"}${usd(Math.abs(p.net))}`).join(", ");
@@ -281,7 +285,7 @@ function announce(app: App, dm = true, credit = () => {}) {
     if (dm && mine?.net) {
       const left = money.today(state, now());
       void speak("dime",
-        `Charles ${mine.net > 0 ? "won" : "lost"} his group market bet (${bet} on "${m.question}"): ${signedUsd(mine.net)} to today. Left today: ${usd(left)}. ${mine.net > 0 ? `Celebrate the win; ${m.subject} did not spend his money.` : "Own the loss, lightly."}`,
+        `Charles ${mine.net > 0 ? "won" : "lost"} his group market bet (${bet} on "${m.question}"): ${signedUsd(mine.net)} to today. Left today: ${usd(left)}. ${mine.net > 0 ? "Celebrate it: market winnings are free money on top of today's number." : "Own the loss, lightly."}`,
         mine.net > 0
           ? [`your ${m.subject} bet hit 💸 +${usd(mine.net)}`, `${usd(left)} left today`]
           : [`your ${m.subject} bet missed. −${usd(-mine.net)}`, `${usd(left)} left today`]);

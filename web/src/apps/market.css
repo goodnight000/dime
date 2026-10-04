@@ -208,12 +208,38 @@
 .mk-fail {
   padding: 0 var(--card-pad) var(--s3);
 }
+/* Your bet: the words take the chips' place, the answer row stays put with your side lit. */
 .mk-placed {
   display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 0;
+}
+.mk-pl {
+  display: grid;
   align-content: center;
+  padding: 0 var(--card-pad);
   font-size: var(--step--2);
   line-height: 1.35;
   color: var(--muted);
+}
+.mk-chosen > span {
+  display: grid;
+  place-items: center;
+  font-size: var(--step--1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mk-chosen > span + span {
+  border-left: 1px solid var(--rule);
+}
+.mk-chosen .yes {
+  color: var(--money);
+}
+.mk-chosen .no {
+  color: var(--danger);
+}
+.mk-chosen .off {
+  opacity: 0.4;
 }
 .mk-placed b {
   margin-bottom: 2px;
@@ -288,5 +314,5 @@
 
 /* Faces tint off the card, not the pane: on the dark card a pane-based disc sinks into it. */
 .mk .av {
-  background: color-mix(in srgb, var(--tone) 26%, var(--bg-2));
+  background: color-mix(in srgb, var(--tone) calc(var(--av-tint) + 4%), var(--bg-2));
 }

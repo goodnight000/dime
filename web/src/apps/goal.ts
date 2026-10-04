@@ -1,5 +1,5 @@
 // The `goal` card (DESIGN.md §3.3): a phone glass filling with money. Arriving in this session it
-// plays the sweep: "+$12 tonight" lands → 200ms → liquid rises while % and saved roll (one idea)
+// plays the sweep: "+$12 from Oct 4" lands → 200ms → liquid rises while % and saved roll (one idea)
 // → the date crossfades if it moved. Loaded from history, it shows the final level, still.
 //
 // A card that fills the goal is the payoff: "$1,099 saved" and an Order it / Not yet row inside the
@@ -8,7 +8,7 @@
 // glass settles with one spring; only then does the ask appear.
 import "./goal.css";
 import type { Renderer, Act } from "./index.ts";
-import { T, EASE, later, arrival, swap, reduced } from "../motion.ts";
+import { T, EASE, later, arrival, hold, swap, reduced } from "../motion.ts";
 import { roll, usd, signed } from "../num.ts";
 
 type Side = { saved: number; pct: number; eta: string };
@@ -19,6 +19,7 @@ type State = {
   from: Side;
   to: Side;
   delta: number;
+  note?: string; // the money line, worded by the server: "+$30 from Oct 4", "Full"
   order?: { status: Status; outcome: string | null };
 };
 type Shown = Status | "failed" | "wait";
@@ -37,7 +38,7 @@ const ASK = `<div class="pr-answer slot gl-ask" aria-live="polite" tabindex="-1"
 type Local = { shown: Shown; pending: "order" | "decline" | null; ready: boolean };
 const seen = new WeakMap<HTMLElement, Local>();
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const arrives = (side: Side) => (side.pct >= 100 ? "Ready to order" : `Arrives ${date(side.eta)}`);
+const arrives = (side: Side) => (side.pct >= 100 ? "Ready to order" : `Saved by ${date(side.eta)}`);
 
 const goal: Renderer = (el, app, act) => {
   const s = app.state as State;
@@ -65,8 +66,8 @@ const goal: Renderer = (el, app, act) => {
   if (!full) q(".gl-price").textContent = usd(s.price);
   if (full) wire(el, s, act);
   const done = s.to.pct >= 100;
-  // The sweep that fills the goal "tops it off" (it isn't tonight's any more once the glass is full).
-  delta.textContent = s.delta > 0 ? `${signed(s.delta)} ${done ? "tops it off" : "tonight"}` : done ? "Full" : "Nothing tonight";
+  // Dated by the server, so an old sweep never reads "tonight" on a later day; a full glass says "Full".
+  delta.textContent = s.note ?? (done ? "Full" : s.delta > 0 ? signed(s.delta) : "");
   delta.classList.toggle("none", !done && s.delta <= 0);
 
   // A full card shows the price as saved; any surplus rides along to the next goal unannounced.
@@ -90,7 +91,7 @@ const goal: Renderer = (el, app, act) => {
   set(s.from);
   eta.firstElementChild!.textContent = arrives(s.from);
   delta.classList.add("pre");
-  void (async () => {
+  void hold((async () => {
     await later(wait + 80);
     delta.classList.replace("pre", "landing");
     await later(T.spring + 200);
@@ -115,7 +116,7 @@ const goal: Renderer = (el, app, act) => {
       if (full) await later(T.press + T.quick); // the date settles before the ask enters: one motion at a time
     }
     finish();
-  })();
+  })());
 };
 
 /** Wires the answer row's buttons: taps are optimistic (the row says "Ordering" at once). */

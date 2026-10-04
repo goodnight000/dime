@@ -2,7 +2,7 @@
 // function of the state and the demo clock: money.ts for the day's math, fund prices from a seeded
 // walk over the catalog's illustrative returns (FUNDS), so a reload or a rehearsal shows the same.
 import * as money from "./money.ts"; // first: seedHistory runs while state.ts is still evaluating
-import { state, id, type State, type Txn, type FundId } from "./state.ts";
+import { state, type State, type FundId } from "./state.ts";
 import { FUNDS } from "./funds-data.ts";
 import { now } from "./clock.ts";
 
@@ -166,11 +166,12 @@ export type Summary = ReturnType<typeof summary>;
 
 // ---- History -------------------------------------------------------------------------------
 /**
- * Fills the weeks before the seed with real outcomes: card spend per day sized against that day's
- * budget (money.budget), the leftover swept at 23:59 like midnight() does, and a few deposits into
- * the ledger. Only touches days before this month, so today's number and the pace are unchanged.
- * Called from state.ts on seed and reset. Uses nothing from this module's top level (it runs
- * while the import cycle with state.ts is still evaluating).
+ * Dime's sweeps before this month, over the real card history (history.ts): each September night
+ * that came in under its budget (money.budget) swept a little to the goal (LEFT), an over day swept
+ * nothing. Days the seed already swept keep the seed's sweep. Plus the ledger's early deposits.
+ * Only touches days before this month, so today's number and the pace are unchanged. Called from
+ * state.ts on seed and reset. Uses nothing from this module's top level (it runs while the import
+ * cycle with state.ts is still evaluating).
  */
 export function seedHistory(s: State): State {
   const at = (daysAgo: number, h: number, m = 0) => {
@@ -180,40 +181,19 @@ export function seedHistory(s: State): State {
     return d;
   };
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  // What each day of last month left over, swept to the goal at 23:59: a few dollars most days,
-  // more late in the month; negative = that much over budget (no sweep, red), null = a no-spend day
-  // (the whole budget swept, gold). Days the seed already swept keep the seed's sweep. Tuned so
-  // last month's sweeps add up to about goal.saved.
-  const LEFT: (number | null)[] = [3, 0, 8, -40, 5, 0, 10, 6, 0, -65, 4, 9, null, 6, 0, 7, -90, 4, 12, 8, 0, -30, 14, 10, 16, 12, 10, 12, 14, 12];
-  // A day: coffee most mornings, lunch, then the evening's big one (dinner out, Uber, shopping).
-  const LUNCH: [string, string][] = [["Sweetgreen", "food"], ["Chipotle", "food"], ["Tartine", "food"], ["Trader Joe's", "groceries"], ["Whole Foods", "groceries"]];
-  const NIGHT: [string, string][] = [
-    ["Nopa", "food"], ["Uber", "transport"], ["Uniqlo", "shopping"], ["DoorDash", "food"], ["AMC", "fun"],
-    ["Zuni Café", "food"], ["Target", "shopping"], ["Lyft", "transport"], ["Sephora", "shopping"], ["Spin Bar", "fun"],
-  ];
-  const txns: Txn[] = [];
+  // Tuned so September's sweeps plus October's add up to about goal.saved.
+  const LEFT = [9, 6, 12, 8, 14, 5, 10, 16, 7, 11, 13, 6, 9, 18, 12, 10, 15, 8, 11, 14, 9, 12, 7, 16, 10, 13];
   const sweepsByDay = new Map(s.sweeps.map((w) => [new Date(w.at).toDateString(), w]));
-  for (let daysAgo = 33, i = 0; daysAgo >= 1; daysAgo--, i++) {
+  for (let daysAgo = 33, i = 0; daysAgo >= 1; daysAgo--) {
     const day = at(daysAgo, 12);
+    if (day < new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)) continue;
     if (day >= monthStart) break;
-    const budget = money.budget({ ...s, txns: [...s.txns, ...txns] }, day);
-    const swept = sweepsByDay.get(day.toDateString());
-    const left = swept ? swept.amount : LEFT[i % LEFT.length];
-    const spend = left === null ? 0 : Math.max(0, budget - left);
-    if (spend > 0) {
-      const coffee = i % 4 === 3 ? 0 : 7;
-      const lunch = Math.round((spend - coffee) * 0.3);
-      const add = (h: number, [merchant, category]: [string, string], amount: number) =>
-        amount > 0 && txns.push({ id: id(), at: at(daysAgo, h, 20).toISOString(), merchant, amount, category, kind: "spend" });
-      add(8, ["Blue Bottle", "coffee"], coffee);
-      add(12, LUNCH[i % LUNCH.length], lunch);
-      add(19, NIGHT[i % NIGHT.length], spend - coffee - lunch);
-    }
-    if (!swept && budget - spend > 0) s.sweeps.push({ at: at(daysAgo, 23, 59).toISOString(), amount: budget - spend });
+    if (sweepsByDay.has(day.toDateString()) || money.over(s, day) > 0) continue;
+    s.sweeps.push({ at: at(daysAgo, 23, 59).toISOString(), amount: LEFT[i++ % LEFT.length] });
+    s.sweeps.sort((a, b) => a.at.localeCompare(b.at));
   }
-  s.txns.unshift(...txns);
-  s.sweeps.sort((a, b) => a.at.localeCompare(b.at));
-  // Money moved in before Dime picked a fund for losses: two funds, four deposits.
+  // Money moved in before Dime picked a fund for losses: two funds, four deposits (history.ts has
+  // the matching Robinhood transfers out of checking).
   s.ledger.unshift(
     ...([[40, "VOO", 500], [31, "QQQ", 250], [18, "VOO", 300], [12, "QQQ", 200]] as const).map(([daysAgo, fund, amount]) => ({
       fund: fund as FundId, amount, at: at(daysAgo, 10).toISOString(), reason: "deposit",

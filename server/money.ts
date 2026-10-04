@@ -16,9 +16,10 @@ const within = <T extends { at: string }>(xs: T[], from: Date, to: Date) =>
 /** Discretionary spend: card purchases not won at blackjack, less refunds. */
 const spent = (txns: Txn[]) =>
   sum(txns.filter((t) => t.kind === "spend" && !t.covered)) - sum(txns.filter((t) => t.kind === "refund"));
-// A loss waiting for a fund (state.pendingInvest) already left today.
+// A loss waiting for a fund (state.pendingInvest) already left today, as did money he moved from
+// today into a fund himself (reason "today", cfo.ts move).
 const lost = (s: State, from: Date, to: Date) =>
-  sum(within([...s.ledger, ...(s.pendingInvest ? [s.pendingInvest] : [])], from, to).filter((l) => l.reason === "blackjack"));
+  sum(within([...s.ledger, ...(s.pendingInvest ? [s.pendingInvest] : [])], from, to).filter((l) => l.reason === "blackjack" || l.reason === "today"));
 
 export function daysLeft(at: Date): number {
   const end = new Date(at.getFullYear(), at.getMonth() + 1, 0).getDate();
@@ -28,8 +29,11 @@ export function daysLeft(at: Date): number {
 /** What's left to spend this month as of `before` (exclusive). */
 export function pool(s: State, before: Date): number {
   const from = monthStart(before);
+  // Pay is planned (month.income); pay that lands beyond the plan (a third biweekly check, a bonus)
+  // is new money for the rest of the month.
+  const landed = sum(within(s.txns, from, before).filter((t) => t.kind === "income"));
   return (
-    s.month.income -
+    Math.max(s.month.income, landed) -
     s.month.bills -
     s.month.invest -
     spent(within(s.txns, from, before)) -

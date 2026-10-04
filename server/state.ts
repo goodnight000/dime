@@ -1,6 +1,7 @@
 // The one in-memory state object and its seed. Neon swaps in later behind the same exports; until
 // then a restart (or POST /api/demo/reset) puts the demo back at the start of Oct 4.
 import { seedHistory } from "./summary.ts"; // dashboard history: earlier weeks, sweeps, ledger
+import { history, balances, SUBSCRIPTIONS, PAYCHECK, SAVINGS_SWEEP } from "./history.ts"; // Jul 6 → Sep 30 bank feed
 
 export type Thread = "dime" | "group";
 export type Friend = "Penny" | "Maya" | "Sam";
@@ -52,7 +53,13 @@ export type State = {
   forceBlackjack: "win" | "lose" | "push" | null;
   /** Bills still to come this month (what month.bills set aside); the today card's weather. */
   upcoming: { merchant: string; amount: number; at: string }[];
+  /** Recurring subscriptions as the bank feed + app usage sees them (CFO detectors read these). */
+  subscriptions: Subscription[];
+  /** End-of-day account balances, one point per account per day, oldest first. */
+  balances: Balance[];
 };
+export type Subscription = { merchant: string; price: number; cadence: "monthly" | "yearly"; lastUsed: string; trialEnds?: string };
+export type Balance = { account: "checking" | "savings"; at: string; balance: number };
 
 export const id = () => crypto.randomUUID();
 
@@ -74,10 +81,12 @@ function seed(): State {
   // Oct 1 was a big day ($204, nothing swept); Oct 2 and 3 came in under and swept the rest. That
   // leaves a pool of $8,710: $311 a day for the 28 days left.
   const txns: Txn[] = [
-    { id: id(), at: at(3, 5), merchant: "Payroll", amount: 10850, category: "income", kind: "income" },
+    ...history(),
     bill(3, "Rent", 1450),
-    bill(3, "Comcast", 70),
-    bill(2, "Spotify", 12),
+    bill(3, "Comcast", 70), // the $47 promo ended: history has Aug and Sep at $47
+    { id: id(), at: at(2, 5), merchant: "Payroll", amount: PAYCHECK, category: "income", kind: "income" },
+    { id: id(), at: at(2, 9), merchant: "Transfer to Savings", amount: SAVINGS_SWEEP, category: "transfer", kind: "transfer" },
+    bill(2, "Spotify", 11.99),
     spend(3, 9, "Blue Bottle", 7, "coffee"),
     spend(3, 12, "Sweetgreen", 16, "food"),
     spend(3, 14, "Trader Joe's", 64, "groceries"),
@@ -133,13 +142,32 @@ function seed(): State {
     typing: { dime: 0, group: 0 },
     pendingInvest: null,
     forceBlackjack: null,
-    // The rest of month.bills ($1,700 less the $1,532 already billed).
+    // October's bills still to come. ponytail: month.bills is the $1,700 plan; the real month runs ~$1,836
+    // (subscriptions); raising it moves the demo's $311, so the plan stays.
     upcoming: [
       { merchant: "Verizon", amount: 45, at: at(-2, 6) },
       { merchant: "Car insurance", amount: 112, at: at(-5, 6) },
       { merchant: "Gym", amount: 11, at: at(-11, 6) },
+      { merchant: "Netflix", amount: 17.99, at: at(-8, 6) },
+      { merchant: "iCloud+", amount: 2.99, at: at(-10, 6) },
+      { merchant: "Claude Pro", amount: 20, at: at(-15, 6) },
+      { merchant: "PG&E", amount: 59.3, at: at(-16, 6) },
+      { merchant: "Hulu", amount: 19, at: at(-18, 6) },
+      { merchant: "NYT", amount: 17, at: at(-21, 6) },
     ],
+    subscriptions: SUBSCRIPTIONS(),
+    // Opening balance picked so checking's low over the last 60 days is about $5,000: cash that
+    // never gets used (what the CFO's idle-cash find reads).
+    balances: openAt(txns, 5000),
   };
+}
+
+/** Daily balances with checking opened so its 60-day low lands on `low`; savings opens at $16,400. */
+function openAt(txns: Txn[], low: number) {
+  const today = new Date(at(0, 0));
+  const past = txns.filter((t) => new Date(t.at) < today);
+  const lowFrom0 = Math.min(...balances(past, 0, 0).filter((b) => b.account === "checking").slice(-60).map((b) => b.balance));
+  return balances(past, Math.round(low - lowFrom0), 16400);
 }
 
 function dime(created_at: string, body: string): Message {

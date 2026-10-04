@@ -106,7 +106,11 @@ export function split(text: string): string[] {
  * Event turns only word facts code already computed: no tools (one round trip) and a 6s cap.
  * Returns the messages to send and the cards the tools opened; throws on error or timeout.
  */
-export async function runTurn(thread: Thread, input: string | { event: string }): Promise<{ lines: string[]; apps: App[] }> {
+export async function runTurn(
+  thread: Thread,
+  input: string | { event: string },
+  on: { text?: () => void; react?: () => void } = {},
+): Promise<{ lines: string[]; apps: App[] }> {
   const { model, models } = connect();
   const apps: App[] = [];
   const event = typeof input !== "string";
@@ -121,6 +125,14 @@ export async function runTurn(thread: Thread, input: string | { event: string })
     },
     streamFn: models.streamSimple.bind(models),
     onPayload,
+  });
+  // Tells the caller when words start streaming (show typing) or a tapback went out (maybe no words).
+  agent.subscribe((e) => {
+    if (e.type === "message_update" && e.assistantMessageEvent.type === "text_delta" && e.assistantMessageEvent.delta.trim()) on.text?.();
+    if (e.type === "tool_execution_start" && e.toolName === "react") on.react?.();
+    // DIME_TRACE=1 logs each tool call and its result (server/agent/battery.ts reads these).
+    if (process.env.DIME_TRACE && e.type === "tool_execution_end")
+      console.log(`[tool] ${e.toolName}${e.isError ? " ERROR" : ""} ${JSON.stringify(e.result?.content?.[0]?.text ?? e.result).slice(0, 400)}`);
   });
   let timer: Timer | undefined;
   try {

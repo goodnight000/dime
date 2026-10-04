@@ -14,6 +14,8 @@ export type GoalState = {
   from: { saved: number; pct: number; eta: string };
   to: { saved: number; pct: number; eta: string };
   delta: number;
+  /** The small money line: "+$30 from Oct 4", "+$23 from Comcast", "Full", or "" (new goal). */
+  note: string;
   /** Only on a card that filled the goal: the in-card ask and its outcome. */
   order?: { status: "open" | "ordering" | "ordered" | "declined"; outcome: string | null };
 };
@@ -21,7 +23,8 @@ export type GoalState = {
 const ORDER_MS = 1200;
 const pctOf = (saved: number, price: number) => Math.min(100, Math.round((saved / price) * 100));
 
-export function create(input: { delta?: number } = {}): App {
+/** `source` names where `delta` came from: the swept day ("Oct 4") or a saving ("Comcast"). */
+export function create(input: { delta?: number; source?: string } = {}): App {
   const g = state.goal;
   const at = now();
   const delta = Math.max(0, input.delta ?? 0);
@@ -32,13 +35,15 @@ export function create(input: { delta?: number } = {}): App {
     from: { saved: before, pct: pctOf(before, g.price), eta: money.etaDate(state, at, money.eta(state, at, before)).toISOString() },
     to: { saved: g.saved, pct: money.pct(state), eta: money.etaDate(state, at).toISOString() },
     delta,
+    note: "",
   };
+  s.note = s.to.pct >= 100 ? "Full" : delta > 0 ? `+${usd(delta)} from ${input.source ?? "today"}` : input.source ? `Nothing left ${input.source}` : "";
   if (g.saved >= g.price) s.order = { status: "open", outcome: null };
   return { id: id(), kind: "goal", version: 1, state: s };
 }
 
 /** The words that go with a card that just filled the goal (events.ts midnight, demo fill-goal). */
-export const fullLine = () => `${state.goal.name} fund full: ${usd(state.goal.price)}. want me to order it?`;
+export const fullLine = () => `${usd(state.goal.price)} saved. the ${state.goal.name} is fully funded 🎉 want me to order it?`;
 
 /** Delivery day: the first Thursday at least two days out. */
 const arrives = () => ([3, 4].includes(now().getDay()) ? "next Thursday" : "Thursday");
@@ -60,7 +65,7 @@ async function order(app: App) {
     }
   const left = money.today(state, now());
   await speak("dime", `${outcome} It cost ${usd(s.price)}, paid from the goal fund as a covered purchase, so today's number didn't move. Left today: ${usd(left)}. Now ask what he wants to save for next.`,
-    [`paid from the fund 📱 today didn't move`, `what are we saving for next?`]);
+    [`ordered 📦 the ${usd(s.price)} came out of the goal fund, so your ${usd(left)} today didn't budge`, `ok what are we saving for next? 👀`]);
 }
 
 export const actions: Record<string, (app: App, body: any) => void> = {

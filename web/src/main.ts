@@ -1,7 +1,7 @@
 import "./theme.css";
 import { api, type Session } from "./api.ts";
 import chat from "./chat.ts";
-import dashboard from "./dashboard.ts";
+import dashboard, { prime } from "./dashboard.ts";
 import accounts from "./accounts.ts";
 import demo from "./demo.ts";
 import { hydrateIcons } from "./icons.ts";
@@ -9,6 +9,7 @@ import { face } from "./people.ts";
 import { latestOnly } from "./latest.ts";
 import { listMessages, type Thread } from "./api.ts";
 import { roll, usd } from "./num.ts";
+import { quiet } from "./motion.ts";
 
 export type Screen = (
   main: HTMLElement,
@@ -37,6 +38,7 @@ export function go(path: string, replace = false) {
 /** The demo control panel has the whole window: it is Charles's, not part of the app. */
 const bare = (path: string) => path === "/demo";
 
+let session: Promise<Session> | undefined;
 async function render() {
   const current = beginNavigation();
   const path = location.pathname;
@@ -47,15 +49,17 @@ async function render() {
   // Clear the old host before replacing it so its polling loops see their nodes disappear.
   main.replaceChildren();
   const host = document.createElement("main");
-  host.innerHTML = `<p class="note" role="status">Loading…</p>`;
   main.replaceWith(host);
   main = host;
   try {
-    const session = await api<Session>("GET", "/session");
+    // Fetched once: the session never changes in the demo, so later screens render with no
+    // round trip and no "Loading…" between them. A failure clears it so Retry asks again.
+    session ??= api<Session>("GET", "/session").catch((e) => ((session = undefined), Promise.reject(e)));
+    const s = await session;
     if (!current()) return;
     host.replaceChildren();
-    side.querySelector(".agent-name")!.textContent = session.agent.name;
-    await screens[path](host, session, current);
+    side.querySelector(".agent-name")!.textContent = s.agent.name;
+    await screens[path](host, s, current);
   } catch {
     if (!current()) return;
     host.innerHTML = `<p class="note" role="status">Something went wrong.</p><button class="link" type="button">Retry</button>`;
@@ -79,9 +83,17 @@ async function sidebar() {
     try {
       if (document.body.classList.contains("out")) throw 0; // the demo panel has no sidebar
       const s = await api<{ today: number }>("GET", "/summary");
-      roll(leftNum, usd(s.today));
+      prime(s);
+      const text = usd(s.today);
+      if (leftNum.dataset.v !== undefined && leftNum.dataset.v !== text) {
+        // The card that moved the money resolves first, then the number rolls (one motion at a time):
+        // wait out a chat poll so the card has its new version, then for its sequence to finish.
+        await new Promise((r) => setTimeout(r, 1200));
+        await quiet();
+      }
+      roll(leftNum, text);
       const phone = document.querySelector<HTMLElement>("main .contact .left .num"); // the phone's copy
-      if (phone) roll(phone, usd(s.today));
+      if (phone) roll(phone, text);
       for (const t of ["dime", "group"] as Thread[]) {
         const snap = await listMessages(t);
         const last = snap.messages.at(-1);

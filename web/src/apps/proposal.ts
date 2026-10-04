@@ -12,6 +12,7 @@ type State = {
   summary: string;
   artifact: { name: string; was?: string; now?: string; delta?: string; note?: string } | null;
   verb?: string; // the yes button: "Call Comcast"
+  no?: string; // the no button, default "Not now"
   working: string;
   declined: string;
   status: Status;
@@ -76,6 +77,7 @@ const proposal: Renderer = (el, app, act) => {
       text(card, ".pr-fig em", a.delta);
     }
     if (s.verb) card.querySelector(".approve")!.textContent = s.verb;
+    if (s.no) card.querySelector(".decline")!.textContent = s.no;
     text(card, '[data-s="working"] .t', s.working);
     text(card, '[data-s="declined"] .t', s.declined);
     local = { shown: "open", pending: null };

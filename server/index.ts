@@ -10,6 +10,7 @@ import { post, reply } from "./voice.ts";
 import { morning, purchase, midnight } from "./events.ts";
 import { cfoScan } from "./cfo.ts";
 import { friendSwipe, typing as groupTyper } from "./friends.ts";
+import { EVENTS, categorize } from "./simulate.ts";
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const bad = (error: string, status = 400) => json({ error }, status);
@@ -20,8 +21,9 @@ const demo: Record<string, (b: any) => unknown> = {
   swipe: (b) => {
     const amount = Number(b.amount);
     if (!b.merchant || !(amount > 0)) throw new Error("merchant and a positive amount");
-    purchase({ merchant: String(b.merchant), amount, category: String(b.category || "other") });
+    purchase({ merchant: String(b.merchant), amount, category: String(b.category || categorize(String(b.merchant))) });
   },
+  ...EVENTS, // simulated bank / brokerage / Venmo events (simulate.ts)
   morning: () => morning(),
   midnight: () => midnight(),
   "skip-day": async () => {

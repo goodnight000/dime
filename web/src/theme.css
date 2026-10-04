@@ -23,8 +23,9 @@
   --blue: #2a5bbf; /* bubble fill: #eeeeeb text ≥4.5:1 */
   --blue-ink: var(--blue); /* blue as text on cards (Approve, links) */
   --inset: var(--pane); /* a surface inside a card (proposal artifact, fund list) */
-  --av-ink: #000; /* initials: the tone darkened, so they read on its tint */
-  --av-mix: 55%;
+  --av-ink: #000; /* initials: the tone darkened well past its tint, so they read at 10px */
+  --av-mix: 38%;
+  --av-tint: 24%; /* the disc: the tone over the surface it sits on */
   --green: #3f8f5f;
   --amber: #c98a2e;
   --violet: #7a62b0;
@@ -79,8 +80,9 @@
   --blue-ink: #8aaee8; /* blue text on dark cards: a light tint, not the fill */
   --danger: #d9796f;
   --inset: color-mix(in srgb, var(--fg) 6%, var(--bg-2)); /* lighter than its card: elevation, not a hole */
-  --av-ink: var(--fg);
-  --av-mix: 40%;
+  --av-ink: #f4f3ef; /* near-white with a trace of the tone: the disc is dark, the letter bright */
+  --av-mix: 22%;
+  --av-tint: 34%;
   --green: #77b892;
   --amber: #dcae66;
   --violet: #a08fd0;
@@ -102,8 +104,9 @@
     --blue-ink: #8aaee8; /* blue text on dark cards: a light tint, not the fill */
     --danger: #d9796f;
     --inset: color-mix(in srgb, var(--fg) 6%, var(--bg-2)); /* lighter than its card: elevation, not a hole */
-    --av-ink: var(--fg);
-    --av-mix: 40%;
+    --av-ink: #f4f3ef; /* near-white with a trace of the tone: the disc is dark, the letter bright */
+    --av-mix: 22%;
+    --av-tint: 34%;
     --green: #77b892;
     --amber: #dcae66;
     --violet: #a08fd0;
@@ -1301,7 +1304,7 @@ form > .link {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--tone) 22%, var(--pane));
+  background: color-mix(in srgb, var(--tone) var(--av-tint), var(--pane));
   color: color-mix(in srgb, var(--tone) var(--av-mix), var(--av-ink));
   font-size: 0.7rem;
   font-weight: 600;

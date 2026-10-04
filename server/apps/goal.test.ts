@@ -10,10 +10,14 @@ beforeEach(() => reset());
 
 test("a card short of the price has no ask; a full one orders without touching today", async () => {
   expect(open("goal", { delta: 10 }).state.order).toBeUndefined();
+  // The money line is dated, never "tonight"; a new goal has none.
+  expect(open("goal", { delta: 30, source: "Oct 4" }).state.note).toBe("+$30 from Oct 4");
+  expect(open("goal", { delta: 0 }).state.note).toBe("");
   state.goal.saved = state.goal.price + 20;
   const app = open("goal", { delta: 100 });
   expect(app.state.order).toEqual({ status: "open", outcome: null });
   expect(app.state.to.pct).toBe(100);
+  expect(app.state.note).toBe("Full");
   const today = money.today(state, now());
   await run(app.id, "order", {});
   expect(app.state.order.status).toBe("ordering");

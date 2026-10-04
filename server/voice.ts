@@ -41,13 +41,14 @@ export function faithful(words: string, facts: string): boolean {
 }
 
 /** The model's wording of an event, or null: no creds, error, 6s timeout, silence, or a number
- * the facts don't have. `template` is the default wording; its numbers are part of the facts. */
-export async function word(thread: Thread, facts: string, template: string[]): Promise<string[] | null> {
+ * the facts don't have. `template` is the default wording; its numbers are part of the facts.
+ * `numbers`, when given, is all the words may quote instead (an intro whose cards carry the amounts). */
+export async function word(thread: Thread, facts: string, template: string[], numbers?: string): Promise<string[] | null> {
   if (!agent.enabled()) return null;
   const event = `${facts}\nDefault wording (say it your way, same numbers): ${template.join(" / ")}`;
   try {
     const { lines } = await agent.runTurn(thread, { event });
-    if (lines.length && faithful(lines.join("\n"), event)) return lines;
+    if (lines.length && faithful(lines.join("\n"), numbers ?? event)) return lines;
     console.warn("event words rejected, using the template:", lines);
   } catch (e) {
     console.warn("event turn failed, using the template:", (e as Error).message);
@@ -61,10 +62,10 @@ export async function word(thread: Thread, facts: string, template: string[]): P
  * after `delay` (a card finishing its own motion first), and the first line lands the moment the
  * words are ready (at least 400ms of typing).
  */
-export async function speak(thread: Thread, facts: string, template: (string | App)[], delay = 0) {
+export async function speak(thread: Thread, facts: string, template: (string | App)[], delay = 0, numbers?: string) {
   const texts = template.filter((l): l is string => typeof l === "string");
   const cards = template.filter((l): l is App => typeof l !== "string");
-  const words = word(thread, facts, texts);
+  const words = word(thread, facts, texts, numbers);
   if (delay) await Bun.sleep(delay);
   state.typing[thread]++;
   let lines: string[];
@@ -93,7 +94,7 @@ function buy(thread: Thread, item: string, amount: number) {
   const asked = `Charles asked if he should buy ${item} for ${usd(amount)}. Left today: ${usd(left)}. Girl math: ${g.name} ${days} later if he buys it.`;
   if (amount > left)
     return speak(thread, `${asked} It's more than today's number: the answer is no. Say no, kindly or savagely per tone. Don't mention blackjack or betting.`,
-      [`${item} is ${usd(amount)}, today is ${usd(left)}. that's a no 🙅`, `${item} = ${g.name} ${days} later fyi`]);
+      [`${item} for ${usd(amount)}? you've got ${usd(left)} today. that's a no 🙅`, `${item} = ${g.name} ${days} later fyi`]);
   const app = open("blackjack", { item, amount });
   return speak(thread, `${asked} It fits, so you offer him blackjack against you (call yourself "me", never "the CFO" or "the dealer"): win and the ${item} is on the house and doesn't count against today; lose and the ${usd(amount)} gets invested instead. The blackjack card follows your words.`,
     [`beat me and it's on the house 🃏`, `lose and the ${usd(amount)} gets invested. deal?`, app]);
@@ -102,15 +103,34 @@ function buy(thread: Thread, item: string, amount: number) {
 /** The Pi agent's turn, when gateway creds are set (see server/agent/index.ts). False → use the templates. */
 async function brain(thread: Thread, text: string): Promise<boolean> {
   if (!agent.enabled()) return false;
-  state.typing[thread]++;
+  // Typing shows once words start streaming, or after 1.2s of thinking; a tapback-only or silent
+  // turn usually never shows it.
+  let shownAt = 0;
+  const show = () => {
+    if (shownAt) return;
+    shownAt = Date.now();
+    state.typing[thread]++;
+  };
+  const hide = () => {
+    if (shownAt) state.typing[thread] = Math.max(0, state.typing[thread] - 1);
+    shownAt = 0;
+  };
+  let wrote = false;
+  const timer = setTimeout(show, 1200);
+  // A tapback before any words: likely the whole reply, so drop the thinking indicator.
+  const reacted = () => (clearTimeout(timer), wrote || hide());
   let turn;
   try {
-    turn = await agent.runTurn(thread, text);
+    turn = await agent.runTurn(thread, text, { text: () => ((wrote = true), show()), react: reacted });
+    // Words came fast: a short typing beat so the bubble doesn't pop in cold.
+    if (turn.lines.length || turn.apps.length) show();
+    if (shownAt) await Bun.sleep(Math.max(0, 700 - (Date.now() - shownAt)));
   } catch (e) {
     console.error("agent turn failed, using templates:", e);
     return false;
   } finally {
-    state.typing[thread] = Math.max(0, state.typing[thread] - 1);
+    clearTimeout(timer);
+    hide();
   }
   // The model's think time was the typing pause: the first line lands now, the rest at say()'s pace.
   const [first, ...rest] = [...turn.lines, ...turn.apps];

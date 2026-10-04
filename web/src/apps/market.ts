@@ -4,7 +4,7 @@
 // roll (one motion); a result swaps the slot, then the losing side fades.
 import "./market.css";
 import type { Renderer } from "./index.ts";
-import { T, arrival, later, reduced, swap } from "../motion.ts";
+import { T, arrival, hold, later, reduced, swap } from "../motion.ts";
 import { roll, usd, signed } from "../num.ts";
 import { face } from "../people.ts";
 
@@ -36,11 +36,11 @@ const market: Renderer = (el, app, act) => {
     const open: Market = { ...structuredClone(s), status: "open", payouts: undefined, settledAt: undefined };
     draw(el, open, act);
     const run = async () => (await later(arrival(el) + 80), await diff(el, open, s));
-    return void queue.set(el, run());
+    return void queue.set(el, hold(run()));
   }
   if (!prev) return draw(el, s, act);
   const run = () => diff(el, prev, s);
-  queue.set(el, (queue.get(el) ?? Promise.resolve()).then(run, run));
+  queue.set(el, hold((queue.get(el) ?? Promise.resolve()).then(run, run)));
 };
 export default market;
 
@@ -66,7 +66,7 @@ function draw(el: HTMLElement, s: Market, act: (a: string, b?: object) => Promis
           (side) => `<button type="button" class="${side}" data-side="${side}"><span class="slot"><span class="on"></span><span>${DOTS}</span></span></button>`,
         ).join("")}</div>
       </div>
-      <div class="mk-placed"><b></b><span></span><span></span></div>
+      <div class="mk-placed"><div class="mk-pl"><b></b><span></span></div><div class="answers mk-chosen" aria-hidden="true"><span class="yes"></span><span class="no"></span></div></div>
       <div class="mk-done"><b></b><ol></ol></div>
       <div class="mk-fail"><span>Didn't go through.</span> <button type="button" class="link">Retry</button></div>
     </div>
@@ -209,10 +209,15 @@ function outcome(el: HTMLElement, s: Market) {
   }
   if (mine) {
     const placed = bottom.querySelector<HTMLElement>(".mk-placed")!;
-    const [head, pays, closes] = placed.children;
+    const [head, pays] = placed.querySelector(".mk-pl")!.children;
     head.textContent = `You: ${usd(mine.amount)} on ${cap(mine.side)}`;
     pays.textContent = `Pays about ${usd(s.estimate ?? mine.amount)} if you're right.`;
-    closes.textContent = `Closes ${clock.format(new Date(new Date(s.to).getTime() - 60_000))}`;
+    // The answer row stays where it was, your side lit and the other dimmed: the pick, locked in.
+    for (const side of ["yes", "no"] as Side[]) {
+      const half = placed.querySelector<HTMLElement>(`.mk-chosen .${side}`)!;
+      half.textContent = side === mine.side ? `${cap(side)} · ${usd(mine.amount)}` : cap(side);
+      half.classList.toggle("off", side !== mine.side);
+    }
     return swap(bottom, placed);
   }
   if (!bottom.querySelector(":scope > .on")) swap(bottom, bottom.querySelector(".mk-bet")!);

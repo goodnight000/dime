@@ -37,7 +37,7 @@ const accounts: Screen = (main, _session, current) => {
   main.innerHTML = `
     <header class="page-head"><h1>Accounts</h1></header>
     <div class="acct-split">
-      <section aria-label="Accounts"><ul class="rows svcs"></ul></section>
+      <section aria-labelledby="svc-h"><h2 id="svc-h">Connections</h2><ul class="rows svcs"></ul></section>
       <aside class="recent" aria-labelledby="recent-h">
         <h2 id="recent-h">Recent</h2>
         <ul class="rows txns" aria-live="polite"></ul>
