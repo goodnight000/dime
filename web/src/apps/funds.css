@@ -1,0 +1,210 @@
+/* The funds card (DESIGN.md §3.2). 352 × 384: list inset 6px, detail pane 4rem, answer row 2.75rem. */
+.fp {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+.fp-list {
+  margin: 6px 6px 0;
+  border-radius: 12px; /* 18 − 6 */
+  background: var(--pane);
+  overflow: hidden;
+}
+.fp-row {
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr) auto;
+  gap: var(--s2);
+  align-items: center;
+  box-sizing: border-box;
+  height: 3.25rem;
+  padding: 0 var(--card-pad);
+  cursor: pointer;
+  transition:
+    background-color var(--quick) ease,
+    opacity var(--move) ease;
+}
+.fp-row + .fp-row {
+  border-top: 1px solid var(--rule);
+}
+.fp-row[aria-checked="true"] {
+  background: color-mix(in srgb, var(--blue) 9%, var(--pane));
+}
+@media (hover: hover) and (pointer: fine) {
+  .fp:not(.decided) .fp-row[aria-checked="false"]:hover {
+    background: color-mix(in srgb, var(--fg) 4%, var(--pane));
+  }
+  .fp-answer > button:hover {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
+}
+.fp-row:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px; /* the list clips its corners */
+}
+
+.fp-radio {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  transition:
+    background-color var(--quick) ease,
+    border-color var(--quick) ease;
+}
+.fp-radio i {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #eeeeeb;
+  opacity: 0;
+}
+[aria-checked="true"] > .fp-radio {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+[aria-checked="true"] > .fp-radio i {
+  opacity: 1;
+}
+.landing > .fp-radio i {
+  animation: land var(--t-spring) var(--spring) both;
+}
+
+.fp-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.35;
+}
+.fp-name {
+  font-size: var(--step--1);
+  white-space: nowrap;
+}
+.fp-name b {
+  font-weight: 600;
+}
+.fp-name small {
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--muted);
+}
+.fp-blurb {
+  font-size: var(--step--2);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Risk: four bottom-aligned bars, the filled count is the level. */
+.fp-risk {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+.fp-risk i {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--rule);
+}
+.fp-risk i:nth-child(1) { height: 5px; }
+.fp-risk i:nth-child(2) { height: 7px; }
+.fp-risk i:nth-child(3) { height: 9px; }
+.fp-risk i:nth-child(4) { height: 11px; }
+.fp-risk i.on {
+  background: var(--fg);
+}
+
+.fp-detail {
+  align-content: center;
+}
+.fp-detail > div {
+  padding: var(--s2) var(--card-pad);
+  font-size: var(--step--2);
+  line-height: 1.35;
+}
+.fp-detail p {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-detail p + p {
+  color: var(--muted);
+}
+
+.fp-answer {
+  height: 2.75rem;
+  border-top: 1px solid var(--rule);
+}
+.fp-answer > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  font-size: var(--step--1);
+  line-height: 1.35;
+}
+.fp-answer > button {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--blue);
+  transition: background-color var(--quick) ease;
+}
+.fp-answer > button:active > .slot {
+  scale: 0.97;
+  transition: scale var(--t-press) var(--ease-out);
+}
+.fp-answer > button > .slot {
+  transition: scale var(--quick) ease;
+}
+.fp-answer > button > .slot > * {
+  justify-self: center;
+}
+.fp-answer > button[aria-busy="true"] {
+  cursor: default;
+}
+.fp-answer > button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+  border-radius: 0 0 18px 18px;
+}
+.fp-done {
+  font-weight: 500;
+}
+.fp-done svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--money);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fp-fail span {
+  color: var(--danger);
+}
+
+/* Confirmed: a record. The other rows dim once the outcome is in. */
+.fp.decided .fp-row {
+  cursor: default;
+}
+.fp.decided:not(.holding) .fp-row[aria-checked="false"] {
+  opacity: 0.45;
+}
+
+/* The button's label is a nested slot whose .on child re-enables pointer events; keep a hidden
+   button's label from catching clicks meant for the outcome or Retry over it. */
+.fp-answer > :not(.on) .on {
+  pointer-events: none;
+}

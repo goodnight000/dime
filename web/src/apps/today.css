@@ -1,0 +1,128 @@
+/* The today card (DESIGN.md §3.4). 352 × 152: date, hero, caption | weather; a rule; the bills. */
+.td {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto 1fr;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--s3) var(--card-pad);
+}
+.td-date {
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.td-hero {
+  grid-row: 2;
+  justify-self: start;
+  min-width: 4ch;
+  margin-top: -0.04em;
+  font-size: var(--step-3);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.td-cap {
+  grid-row: 3;
+  font-size: var(--step--1);
+  line-height: 1.2;
+  color: var(--muted);
+}
+p.td-bills {
+  grid-column: 1 / -1;
+  align-self: end;
+  margin: 0;
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
+  font-size: var(--step--2);
+  line-height: 1.35;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-bills b {
+  font-weight: 400;
+  color: var(--fg);
+}
+
+/* The money weather: Charade-style open strokes, one solid focal part in amber. */
+.td-wx {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--s1);
+  margin: 0;
+}
+.td-wx svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  stroke: var(--fg);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+.td-wx .core,
+.td-wx .bolt {
+  fill: var(--amber);
+  stroke: none;
+}
+.td-wx .cloud {
+  fill: var(--bg-2);
+}
+.td-wx figcaption {
+  font-size: var(--step--2);
+  line-height: 1.35;
+  color: var(--muted);
+}
+/* Its verb, once, after the card lands. */
+.td-wx .ray {
+  stroke-dasharray: 1;
+}
+.td-wx.pre .ray {
+  stroke-dashoffset: 1;
+}
+.td-wx.act .ray {
+  animation: td-rays var(--t-slow) var(--ease-out) both;
+}
+@keyframes td-rays {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+.td-wx.cloudy.pre .cloud {
+  translate: -3px 0;
+}
+.td-wx.cloudy.act .cloud {
+  animation: td-drift var(--t-slow) var(--ease-out) both;
+}
+@keyframes td-drift {
+  from {
+    translate: -3px 0;
+  }
+}
+.td-wx.pre .bolt {
+  opacity: 0;
+}
+.td-wx.act .bolt {
+  animation: td-flash var(--t-spring) linear both;
+}
+@keyframes td-flash {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}

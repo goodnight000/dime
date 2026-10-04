@@ -1,0 +1,122 @@
+/* The goal card (DESIGN.md §3.3). 352 × 160: the glass | the numbers. */
+.gl {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--card-pad);
+  box-sizing: border-box;
+}
+.gl-text {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  font-size: var(--step--1);
+  line-height: 1.35;
+}
+.gl-name {
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gl-pct {
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  min-width: 2.5ch; /* "100%" without moving anything */
+}
+.gl-amt {
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: var(--s1);
+}
+.gl-eta {
+  justify-self: stretch;
+}
+.gl-delta {
+  font-weight: 500;
+  color: var(--money);
+  font-variant-numeric: tabular-nums;
+}
+.gl-delta.none {
+  color: var(--muted);
+}
+.gl-delta.pre {
+  opacity: 0;
+}
+.gl-delta.landing {
+  animation: gl-pop var(--t-spring) var(--spring) both;
+  transform-origin: left center;
+}
+@keyframes gl-pop {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+/* The glass: a phone outline whose well fills with money. --p is the level, 0–1. */
+.glass {
+  position: relative;
+  width: 4.5rem;
+  height: 8.75rem;
+  box-sizing: border-box;
+  border: 2px solid var(--fg);
+  border-radius: 1.125rem;
+  padding: 3px;
+}
+.glass::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  width: 1.25rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--fg);
+}
+.glass .well {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(1.125rem - 2px - 3px);
+}
+.glass .liquid {
+  position: absolute;
+  inset: 0;
+  background: var(--money);
+  transform: translateY(calc((1 - var(--p, 0)) * 100%));
+  transition: transform var(--t-data) var(--ease-in-out);
+}
+.glass .wave {
+  position: absolute;
+  bottom: calc(100% - 1px);
+  left: 0;
+  width: 200%;
+  height: 6px;
+  fill: var(--money);
+  stroke: none;
+  scale: 1 0.35;
+  transform-origin: bottom;
+}
+.glass.empty .wave {
+  opacity: 0;
+}
+.glass.filling .wave {
+  animation: slosh var(--t-data) linear;
+}
+@keyframes slosh {
+  20% {
+    scale: 1 1;
+  }
+  to {
+    translate: -50% 0;
+    scale: 1 0.35;
+  }
+}

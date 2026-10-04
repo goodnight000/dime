@@ -16,8 +16,9 @@ const within = <T extends { at: string }>(xs: T[], from: Date, to: Date) =>
 /** Discretionary spend: card purchases not won at blackjack, less refunds. */
 const spent = (txns: Txn[]) =>
   sum(txns.filter((t) => t.kind === "spend" && !t.covered)) - sum(txns.filter((t) => t.kind === "refund"));
+// A loss waiting for a fund (state.pendingInvest) already left today.
 const lost = (s: State, from: Date, to: Date) =>
-  sum(within(s.ledger, from, to).filter((l) => l.reason === "blackjack"));
+  sum(within([...s.ledger, ...(s.pendingInvest ? [s.pendingInvest] : [])], from, to).filter((l) => l.reason === "blackjack"));
 
 export function daysLeft(at: Date): number {
   const end = new Date(at.getFullYear(), at.getMonth() + 1, 0).getDate();

@@ -1,0 +1,550 @@
+/* Dashboard (DESIGN.md §5): a rail of today on the left, the money's work on the right. No card
+   per section; whitespace and one hairline. Everything scoped to main.dash. */
+main.dash {
+  --col: 72rem;
+}
+main.dash .board {
+  display: grid;
+  grid-template-columns: 20rem minmax(0, 1fr);
+  column-gap: var(--s5);
+  align-items: start;
+}
+main.dash .board.still *,
+main.dash .board.still *::before {
+  transition: none !important;
+}
+main.dash .num:not([aria-label]) {
+  color: var(--muted); /* the "—" before data arrives */
+}
+main.dash h2 {
+  font-size: var(--step-0);
+  font-weight: 600;
+}
+
+/* ---- Rail ---- */
+main.dash .rail {
+  box-sizing: border-box;
+  border-right: 1px solid var(--rule);
+  padding-right: var(--s5);
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: var(--s5);
+}
+main.dash .today .lbl {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+}
+main.dash .hero.big {
+  font-size: var(--step-4);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  min-width: 4ch;
+  margin-top: var(--s1);
+}
+main.dash .hero.big .dg,
+main.dash .hero.big .strip > span,
+main.dash .hero.big .ch {
+  height: 1em;
+}
+main.dash .hero.big .strip {
+  transform: translateY(calc(var(--d) * -1em));
+}
+main.dash .hero.big.num {
+  line-height: 1;
+}
+main.dash .sub p {
+  font-size: var(--step--1);
+  color: var(--muted);
+  line-height: 1.35;
+}
+main.dash .sub .overline {
+  color: var(--danger);
+}
+main.dash .sub .num {
+  vertical-align: baseline;
+}
+main.dash .kv {
+  margin: var(--s4) 0 0;
+}
+main.dash .kv > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--rule);
+}
+main.dash .kv dt {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.dash .kv dd {
+  margin: 0;
+  font-size: var(--step-0);
+  font-weight: 500;
+}
+
+/* Goal: the glass and its numbers beside it. */
+main.dash .goal {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+}
+main.dash .gt {
+  display: grid;
+  gap: var(--s1);
+  min-width: 0;
+}
+main.dash .gname {
+  font-size: var(--step--1);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .gpct {
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  min-width: 3.5ch;
+}
+main.dash .gt small {
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+main.dash .gt small .num {
+  vertical-align: baseline;
+}
+main.dash .eta {
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .glass {
+  position: relative;
+  width: 4.5rem;
+  height: 8.75rem;
+  box-sizing: border-box;
+  border: 2px solid var(--fg);
+  border-radius: 1.125rem;
+  padding: 3px;
+}
+main.dash .glass::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  width: 1.25rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--fg);
+}
+main.dash .glass .well {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(1.125rem - 2px - 3px);
+}
+main.dash .glass .liquid {
+  position: absolute;
+  inset: 0;
+  background: var(--money);
+  transform: translateY(calc((1 - var(--p)) * 100%));
+  transition: transform var(--t-data) var(--ease-in-out);
+}
+main.dash .glass .wave {
+  position: absolute;
+  bottom: calc(100% - 1px);
+  left: 0;
+  width: 200%;
+  height: 6px;
+  fill: var(--money);
+  stroke: none;
+  scale: 1 0.35;
+  transform-origin: bottom;
+}
+main.dash .glass.filling .wave {
+  animation: dash-slosh var(--t-data) linear;
+}
+@keyframes dash-slosh {
+  20% {
+    scale: 1 1;
+  }
+  to {
+    translate: -50% 0;
+    scale: 1 0.35;
+  }
+}
+
+/* ---- Work: invested ---- */
+main.dash .work {
+  display: grid;
+  gap: var(--s5);
+  min-width: 0;
+}
+main.dash .invested > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+main.dash .ih {
+  display: grid;
+  gap: var(--s1);
+}
+main.dash .waiting {
+  font-size: var(--step--1);
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity var(--quick);
+}
+main.dash .waiting.on {
+  opacity: 1;
+}
+main.dash .waiting .num {
+  vertical-align: baseline;
+}
+main.dash .tot {
+  display: grid;
+  justify-items: end;
+  gap: var(--s1);
+}
+main.dash .tot .hero {
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+main.dash .delta {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.dash .delta.up {
+  color: var(--money);
+}
+main.dash .delta .num {
+  vertical-align: baseline;
+}
+
+main.dash .chart {
+  position: relative;
+  height: 12rem;
+  touch-action: pan-y;
+}
+main.dash .chart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+main.dash .chart .grid line {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+main.dash .chart .line {
+  stroke: var(--fg);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+main.dash .end-dot {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg);
+}
+/* The value sits up and to the left of the dot, clear of the line arriving from the left. */
+main.dash .chart .end-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  font-size: var(--step--2);
+  font-weight: 500;
+  transform: translate(calc(-100% - 0.5rem), calc(-100% - 0.25rem));
+  transition: opacity var(--quick);
+}
+main.dash .end-dot {
+  transition: opacity var(--quick);
+}
+main.dash .chart.drawing :is(.end-dot, .end-label) {
+  opacity: 0;
+  transition: none;
+}
+/* Hover: the point being read, on the line. */
+main.dash .hover-dot {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 0 0 2px var(--pane);
+  opacity: 0;
+  pointer-events: none;
+}
+main.dash .hair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+}
+main.dash .tip {
+  position: absolute;
+  z-index: 10;
+  top: calc(-1 * var(--s4));
+  left: 0;
+  padding: var(--s1) var(--s2);
+  background: var(--pane);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  font-size: var(--step--2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--fg) 35%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-press) ease;
+}
+main.dash .chart.hovering :is(.hair, .tip, .hover-dot) {
+  opacity: 1;
+}
+main.dash .xl {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s2);
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .alloc {
+  display: flex;
+  gap: 2px;
+  height: 0.5rem;
+  margin-top: var(--s4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+main.dash .alloc i {
+  flex: 1 1 0;
+  min-width: 2px;
+}
+main.dash .rows.funds {
+  margin-top: var(--s3);
+}
+main.dash .row.fund {
+  grid-template-columns: 0.625rem minmax(0, 1fr) auto 4.5rem;
+  gap: var(--s3);
+  min-height: 3.25rem;
+  padding: 0.6rem var(--s3);
+}
+main.dash .fund .sw {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 3px;
+}
+main.dash .fund .nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .fund .nm b {
+  font-weight: 500;
+}
+main.dash .fund .nm small {
+  font-size: var(--step--2);
+  color: var(--muted);
+  margin-left: var(--s1);
+}
+main.dash .fund .chg {
+  justify-self: end;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+main.dash .fund .chg.up {
+  color: var(--money);
+}
+main.dash .rows .empty {
+  padding: var(--s4) var(--s3);
+}
+
+/* ---- Spending | Days ---- */
+main.dash .pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto; /* the calendar's own width, ~17rem */
+  gap: var(--s5);
+}
+main.dash .bars {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+main.dash .bars li {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) 6ch;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 1.75rem;
+  font-size: var(--step--1);
+}
+main.dash .bars li.empty {
+  display: block;
+  color: var(--muted);
+}
+main.dash .bars .cat {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dash .bars .amt {
+  justify-self: end;
+}
+main.dash .bar {
+  height: 6px;
+}
+/* Full-width bar clipped to its share (the split bar's technique): no width animation. */
+main.dash .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg) 45%, transparent);
+  clip-path: inset(0 calc((1 - var(--r, 0)) * 100%) 0 0 round 3px);
+  transition:
+    clip-path var(--t-slow) var(--ease-in-out),
+    background-color var(--quick);
+}
+main.dash .bars li.top .bar i {
+  background: var(--fg);
+}
+
+main.dash .wk,
+main.dash .cal {
+  display: grid;
+  grid-template-columns: repeat(7, 2.25rem);
+  gap: 4px;
+}
+main.dash .wk {
+  margin-top: var(--s3);
+  margin-bottom: var(--s1);
+}
+main.dash .wk span {
+  text-align: center;
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+main.dash .cal .c {
+  display: grid;
+  place-items: center;
+  height: 2.25rem;
+  border-radius: 8px;
+  font-size: var(--step--2);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--quick);
+}
+main.dash .c.under,
+main.dash .legend .under {
+  background: color-mix(in srgb, var(--money) 20%, var(--pane));
+}
+main.dash .c.over,
+main.dash .legend .over {
+  background: color-mix(in srgb, var(--danger) 18%, var(--pane));
+}
+main.dash .c.none,
+main.dash .legend .none {
+  background: color-mix(in srgb, var(--amber) 30%, var(--pane));
+}
+main.dash .c.future,
+main.dash .c.prev {
+  color: var(--muted);
+}
+main.dash .c.now {
+  box-shadow: inset 0 0 0 1.5px var(--fg);
+}
+main.dash .legend {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  display: flex;
+  gap: var(--s3);
+  font-size: var(--step--2);
+}
+main.dash .legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+main.dash .legend i {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 3px;
+}
+
+/* Poll failing: figures stay, quietly dimmed until the next good poll. */
+main.dash .board.stale .work,
+main.dash .board.stale .rail {
+  opacity: 0.6;
+  transition: opacity var(--quick);
+}
+
+/* ---- Phone: one column. hero + key-values, goal, Days, Invested, Spending. ---- */
+@media (max-width: 759px) {
+  main.dash .board {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s5);
+  }
+  main.dash .rail,
+  main.dash .work,
+  main.dash .pair {
+    display: contents;
+  }
+  main.dash .today {
+    order: 1;
+  }
+  main.dash .goal {
+    order: 2;
+  }
+  main.dash .days {
+    order: 3;
+  }
+  main.dash .invested {
+    order: 4;
+  }
+  main.dash .spending {
+    order: 5;
+  }
+  main.dash .hero.big {
+    font-size: var(--step-3);
+    letter-spacing: -0.04em;
+  }
+  main.dash .chart {
+    height: 9rem;
+  }
+  main.dash .fund .nm small {
+    display: none;
+  }
+  main.dash .wk,
+  main.dash .cal {
+    grid-template-columns: repeat(7, minmax(0, 2.75rem));
+  }
+}

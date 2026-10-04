@@ -1,0 +1,189 @@
+/* The proposal card (DESIGN.md §3.5): Forth's ask grammar inside a .b.app. Height is intrinsic on
+   arrival and constant after: only the answer row (a 2.75rem swap slot) changes. */
+.b.app[data-kind="proposal"] {
+  block-size: auto;
+}
+/* Cards back to back ("Found 3 things.") read as one slab at the thread's 2px run gap. */
+.b.app + .b.app[data-kind="proposal"],
+.b.app[data-kind="proposal"] + .b.app {
+  margin-top: var(--s2);
+}
+.pr {
+  display: grid;
+}
+.pr-title {
+  display: block;
+  padding: 0.6rem var(--card-pad) 0.2rem;
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.pr-summary {
+  margin: 0;
+  padding: 0 var(--card-pad) 0.65rem;
+  font-size: var(--step-0);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The thing itself, set into the bubble: radius 12 (18 − 6 inset). */
+.pr-art {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin: 0 0.375rem 0.375rem;
+  padding: 0.6rem calc(var(--card-pad) - 0.375rem);
+  border-radius: 12px;
+  background: var(--pane);
+  font-size: var(--step--1);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.pr-art[hidden] {
+  display: none;
+}
+.pr-name {
+  display: grid;
+  min-width: 0;
+}
+.pr-name b {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-note {
+  font-size: var(--step--2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pr-fig {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.pr-fig s {
+  color: var(--muted);
+  text-decoration-thickness: 1px;
+}
+.pr-arrow {
+  color: var(--muted);
+  white-space: pre;
+}
+.pr-fig em {
+  margin-left: var(--s2);
+  font-style: normal;
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--danger);
+}
+.pr-fig [hidden] {
+  display: none;
+}
+
+/* The answer row: buttons, or the outcome, in the same 2.75rem. */
+.pr-answer {
+  block-size: 2.75rem;
+  border-top: 1px solid var(--rule);
+}
+.pr-answer:focus {
+  outline: none; /* holds focus for keyboard users while the buttons give way; the row reads out via aria-live */
+}
+.pr-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.pr-buttons button {
+  all: unset;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--blue);
+  transition:
+    background-color var(--quick),
+    scale var(--t-quick) ease-out;
+}
+.pr-buttons .decline {
+  border-left: 1px solid var(--rule);
+  color: var(--muted);
+}
+.pr-buttons .approve {
+  border-bottom-left-radius: 18px;
+}
+.pr-buttons .decline {
+  border-bottom-right-radius: 18px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pr-buttons button:hover {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+  }
+}
+.pr-buttons button:active {
+  scale: 0.97;
+  transition: scale var(--t-press) ease-out;
+}
+/* Inset outline on the full-bleed cells: the card clips anything outside its edge. */
+.pr-buttons button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -4px;
+}
+.pr-out .link:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.pr-buttons button:disabled {
+  cursor: default;
+}
+
+.pr-out {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0 var(--card-pad);
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.pr-out .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-out.muted {
+  color: var(--muted);
+}
+.pr-out .money {
+  color: var(--money);
+}
+.pr-out .danger {
+  color: var(--danger);
+}
+.pr-out .busy-dots {
+  color: var(--muted);
+  margin-left: 0.125rem;
+}
+.pr-out .ok {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--money);
+}
+/* Live only: the check lands as the outcome comes in (after the buttons' 120ms exit). */
+.slot.live > .on .ok {
+  animation: land var(--t-spring) var(--spring) var(--t-press) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot.live > .on .ok {
+    animation: none;
+  }
+}

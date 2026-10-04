@@ -13,6 +13,7 @@ import type { Screen } from "./main.ts";
 import { renderers } from "./apps/index.ts";
 import { icon } from "./icons.ts";
 import { face } from "./people.ts";
+import { T, reduced } from "./motion.ts";
 
 const POLL_MS = 1000;
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
@@ -40,6 +41,38 @@ const date = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
 });
 const full = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+// Several bubbles in one pull land in turn, this far apart (DESIGN.md §2.2).
+const STAGGER_MS = 120;
+
+/** Pops `li` in (its CSS keyframes, after `delay`); `.new` comes off once it lands, so a later move
+ * of the node can't replay it. Card renderers read the timing through motion.ts arrival(). */
+function arrive(li: HTMLElement, delay = 0) {
+  li.classList.add("new");
+  if (delay) li.style.animationDelay = `${delay}ms`;
+  const done = (e: AnimationEvent) => {
+    if (e.target !== li) return;
+    li.classList.remove("new");
+    li.style.animationDelay = "";
+    li.removeEventListener("animationend", done);
+  };
+  li.addEventListener("animationend", done);
+}
+
+/** Your tapback glyph. `pop` lands it with the spring; `after` waits for an old glyph to leave. */
+function tapback([, glyph, name]: [Tapback, string, string], pop: boolean, after = false) {
+  const tap = document.createElement("span");
+  tap.className = "tapback mine";
+  tap.title = `You reacted: ${name}`;
+  tap.textContent = glyph;
+  if (pop) tap.classList.add("new");
+  if (pop && after) tap.style.animationDelay = `${T.press}ms`;
+  return tap;
+}
+/** Fades a tapback out (120ms) and drops it. */
+function retire(tap: HTMLElement) {
+  tap.classList.add("gone");
+  setTimeout(() => tap.remove(), reduced() ? 0 : T.press);
+}
 
 /** The day label the way Messages writes it: Today, Yesterday, then the date. `now` is the demo clock. */
 function dayLabel(d: Date, now: Date): string {
@@ -128,12 +161,23 @@ export default function chat(thread: Thread): Screen {
       typing?.remove();
       typing = undefined;
     };
-    const startTyping = () => {
+    // The indicator pops in like a bubble (after any bubbles landing in the same pull); it never
+    // fades out: the reply takes its place in one frame.
+    const startTyping = (delay: number) => {
       if (typing) return;
       typing = document.createElement("li");
       typing.className = "b out typing first last";
       typing.setAttribute("aria-label", `${agent.name} is typing`);
       typing.innerHTML = `<i></i><i></i><i></i>`;
+      if (rendered) arrive(typing, delay);
+    };
+    // The group's indicator carries the typer's face in the gutter (DESIGN.md §4).
+    const typingFace = (typer: string | null | undefined) => {
+      if (!group || !typing || typing.dataset.typer === (typer ?? "")) return;
+      typing.dataset.typer = typer ?? "";
+      typing.setAttribute("aria-label", `${typer ?? agent.name} is typing`);
+      typing.querySelector(".av.gutter")?.remove();
+      typing.insertAdjacentHTML("beforeend", typer ? face(typer, "gutter") : icon("cue", "av gutter cue-face"));
     };
 
     // A card's action: POST it, then pull at once so the new version draws without waiting a tick.
@@ -149,7 +193,7 @@ export default function chat(thread: Thread): Screen {
     // reused, and the list is patched in place: an unchanged node is never detached, so no entrance
     // animation replays and a card's in-flight transition is never cut (DESIGN.md §2.1).
     let marks = new Map<string, HTMLLIElement>();
-    const reconcile = ({ messages: rows, apps, pending, now }: Snapshot) => {
+    const reconcile = ({ messages: rows, apps, pending, typer, now }: Snapshot) => {
       const prior = bubbles;
       const priorMarks = marks;
       const live = rendered;
@@ -174,6 +218,7 @@ export default function chat(thread: Thread): Screen {
       };
       let lastAt: Date | undefined;
       let latestInbound = -1;
+      let landing = 0; // bubbles arriving in this pull, for the stagger
       for (const [index, m] of rows.entries()) {
         const at = new Date(m.created_at);
         if (!lastAt || dayOf(at) !== dayOf(lastAt)) {
@@ -208,8 +253,10 @@ export default function chat(thread: Thread): Screen {
         const app = m.app ? apps[m.app] : undefined;
         if (!reused) {
           li.dataset.id = m.id;
-          li.className = `b ${m.direction}${live && m.direction === "out" ? " new" : ""}`;
+          li.className = `b ${m.direction}`;
           li.title = full.format(at);
+          // Your own rows already popped in as drafts; only the other side's arrivals animate.
+          if (live && m.direction === "out") arrive(li, STAGGER_MS * landing++);
         }
         // Toggled, never reassigned, so classes a card renderer puts on its li survive.
         li.classList.toggle("app", !!app);
@@ -218,25 +265,26 @@ export default function chat(thread: Thread): Screen {
         if (app) {
           // The card owns its li's children; its renderer runs again only when the version changes,
           // and diffs against its own last state.
+          li.dataset.kind = app.kind; // sizes the card: --card-h per kind (theme.css)
           if (li.dataset.v !== String(app.version)) {
             li.dataset.v = String(app.version);
             renderers[app.kind]?.(li, app, act(app));
           }
         } else if (li.dataset.sig !== `${m.body}\u0000${m.tapback ?? ""}`) {
           li.dataset.sig = `${m.body}\u0000${m.tapback ?? ""}`;
-          // An open picker or action bar belongs to the bubble, so a redraw must not drop it.
-          const held = [...li.children].filter((c) => c.matches(".bubble-actions, .tapback-picker"));
-          li.replaceChildren(...linkify(m.body));
+          // Only the text is redrawn: the tapback, an open picker or action bar stay attached, since
+          // detaching a node restarts its animation.
+          for (const c of [...li.childNodes])
+            if (c.nodeType === Node.TEXT_NODE || (c as Element).tagName === "A") c.remove();
+          li.prepend(...linkify(m.body));
           li.classList.toggle("jumbo", JUMBO_RE.test(m.body.trim()));
+          const had = li.querySelector<HTMLElement>(":scope > .tapback.mine:not(.gone)");
           const mine = TAPBACKS.find(([t]) => t === m.tapback);
-          if (mine) {
-            const tap = document.createElement("span");
-            tap.className = "tapback mine";
-            tap.title = `You reacted: ${mine[2]}`;
-            tap.textContent = mine[1];
-            li.append(tap);
+          // The glyph already showing (your optimistic tap) stays put, so it doesn't pop twice.
+          if (had?.textContent !== mine?.[1]) {
+            if (had) retire(had);
+            if (mine) li.append(tapback(mine, live, !!had));
           }
-          li.append(...held);
         }
         const faced = li.querySelector(":scope > .av.gutter");
         const wantsFace = group && m.direction === "out" && last;
@@ -282,19 +330,27 @@ export default function chat(thread: Thread): Screen {
         if (i < 0) break;
         outbox.splice(i, 1)[0].remove();
       }
-      if (pending) startTyping();
+      if (pending) startTyping(STAGGER_MS * landing);
+      if (pending) typingFace(typer);
       else stopTyping();
       patch([...nodes, ...outbox, ...(typing ? [typing] : [])]);
       if (follow) settle();
       rendered = true;
     };
 
-    /** Makes the list's children exactly `want`, inserting only what is new or out of place. */
+    /** Makes the list's children exactly `want`, inserting only what is new or out of place.
+     * Moving a node restarts its animations, so when a placed bubble and a line (Delivered, a
+     * day line) are out of order, the line moves, never the bubble. */
     const patch = (want: HTMLElement[]) => {
       const keep = new Set<Element>(want);
       for (const c of [...list.children]) if (!keep.has(c)) c.remove();
       want.forEach((n, i) => {
-        if (list.children[i] !== n) list.insertBefore(n, list.children[i] ?? null);
+        let c = list.children[i];
+        while (c && c !== n && n.isConnected && !c.classList.contains("b")) {
+          list.append(c); // later iterations put it back where it belongs
+          c = list.children[i];
+        }
+        if (c !== n) list.insertBefore(n, c ?? null);
       });
     };
 
@@ -329,12 +385,13 @@ export default function chat(thread: Thread): Screen {
     // tapping it tries again.
     const draft = (text: string) => {
       const li = document.createElement("li");
-      li.className = "b in first last new sending";
+      li.className = "b in first last sending";
       li.textContent = text;
       li.classList.toggle("jumbo", JUMBO_RE.test(text));
       outbox.push(li);
       list.insertBefore(li, typing?.isConnected ? typing : null);
-      settle();
+      settle(); // instant, then the bubble rises: the only thing moving
+      arrive(li);
       return li;
     };
     const deliver = async (text: string, li: HTMLLIElement, reply?: string) => {
@@ -403,16 +460,12 @@ export default function chat(thread: Thread): Screen {
     };
     const react = async (li: HTMLLIElement, t: Tapback) => {
       picker.remove();
-      const had = li.querySelector(".tapback.mine");
+      const had = li.querySelector<HTMLElement>(":scope > .tapback.mine:not(.gone)");
       const glyph = TAPBACKS.find(([x]) => x === t)!;
       const off = had?.textContent === glyph[1];
-      had?.remove();
-      if (!off) {
-        const tap = document.createElement("span");
-        tap.className = "tapback mine";
-        tap.textContent = glyph[1];
-        li.append(tap);
-      }
+      // Changing: the old glyph fades (120ms), then the new one lands. Removing: it fades.
+      if (had) retire(had);
+      if (!off) li.append(tapback(glyph, true, !!had));
       await setTapback(li.dataset.id!, off ? null : t).catch(() => {});
       if (current()) void pull().catch(() => {}); // the stored state wins, whatever happened
     };

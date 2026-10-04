@@ -70,7 +70,7 @@ State = { user: { name: "Charles", tone: "savage"|"nice", fund: FundId|null, hou
           messages: Message[], apps: Record<string, App>, friends: [...], clockOffsetMs: number }
 ```
 
-Seed: today is shown as "Oct 4", ~$300 discretionary already spent this month, pool sized so today's number is about **$43**. Goal: iPhone 17 Pro, $1,099, ~$650 saved. A few realistic transactions (Blue Bottle, Trader Joe's, DoorDash, Uber, Spotify, Comcast, rent).
+Seed: today is shown as "Oct 4", ~$300 discretionary already spent this month, pool sized so today's number is about **$311** (Charles raised the fake income at 11:45 so a $280 impulse buy is playable; tests and copy must not hardcode $43). Goal: iPhone 17 Pro, $1,099, ~$650 saved. A few realistic transactions (Blue Bottle, Trader Joe's, DoorDash, Uber, Spotify, Comcast, rent).
 
 ## Money rules (server/money.ts, pure functions)
 

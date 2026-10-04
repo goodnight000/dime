@@ -1,0 +1,333 @@
+/* The blackjack card (DESIGN.md §3.1): a felt table, 352 × 304, every state inside it. */
+.b.app[data-kind="blackjack"] {
+  background: var(--felt);
+}
+.bj {
+  --card-paper: #fbfaf6;
+  --card-edge: color-mix(in srgb, #000 12%, var(--card-paper));
+  --suit-red: #c0413a;
+  --suit-black: #1a1a19;
+  --cw: 3.25rem;
+  --ch: 4.5rem;
+  --fan: 1.875rem;
+  position: relative;
+  display: grid;
+  grid-template-rows: 2.5rem 5.5rem 1rem 5.5rem 4.5rem;
+  block-size: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--felt);
+  color: var(--felt-fg);
+}
+/* Cards stay paper in the dark, slightly dimmed, not inverted. */
+:root[data-theme="dark"] .bj {
+  --card-paper: #e4e2db;
+  --suit-red: #b3463f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bj {
+    --card-paper: #e4e2db;
+    --suit-red: #b3463f;
+  }
+}
+
+.bj-head {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 3.5rem 0 var(--card-pad); /* clear of the shoe */
+  font-size: var(--step--1);
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.bj-head b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.bj-head span {
+  flex: none;
+  white-space: pre;
+  font-weight: 500;
+  color: var(--felt-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The shoe: where the cards come from. Three backs, mostly off the felt. */
+.bj .shoe {
+  position: absolute;
+  top: -1.9rem;
+  right: -0.5rem;
+  width: 2.5rem;
+  height: 3.5rem;
+  rotate: -8deg;
+}
+.bj .shoe i {
+  position: absolute;
+  inset: 0;
+}
+.bj .shoe i:nth-child(1) {
+  translate: -4px 4px;
+}
+.bj .shoe i:nth-child(2) {
+  translate: -2px 2px;
+}
+
+.bj-zone {
+  display: grid;
+  grid-template-columns: 1fr 3.5rem;
+  align-items: center;
+  padding: 0 var(--card-pad);
+}
+.bj-zone.dealer {
+  grid-row: 2;
+}
+.bj-zone.player {
+  grid-row: 4;
+}
+.bj .tot {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 2px;
+}
+.bj .lbl {
+  font-size: var(--step--2);
+  line-height: 1.35;
+  color: var(--felt-muted);
+  white-space: nowrap;
+}
+.bj .tot .num {
+  min-width: 2ch;
+  justify-content: flex-end;
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  min-height: 1.1em;
+}
+
+/* Hands and cards. */
+.bj .hand {
+  position: relative;
+  height: var(--ch);
+}
+.bj .pc {
+  position: absolute;
+  left: calc(var(--i) * var(--fan));
+  top: 0;
+  width: var(--cw);
+  height: var(--ch);
+  perspective: 700px; /* on the card, so its own flip has depth (a grandchild ignores .hand's) */
+}
+.bj .pc.dealt {
+  animation: bj-deal var(--t-slow) var(--ease-out) var(--delay, 0ms) both;
+  z-index: 5;
+}
+/* Opacity is done by 30% so the card leaves the shoe solid, not as a ghost crossing the felt. */
+@keyframes bj-deal {
+  from {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(-14deg) scale(0.92);
+  }
+  30% {
+    opacity: 1;
+  }
+}
+.bj .pc-flip {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform var(--t-slow) var(--ease-in-out);
+}
+.bj .pc.down .pc-flip {
+  transform: rotateY(180deg);
+}
+.bj .face,
+.bj .back,
+.bj .shoe i {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  backface-visibility: hidden;
+  box-shadow:
+    0 0 0 1px var(--card-edge),
+    -2px 0 4px -2px rgb(0 0 0 / 0.28);
+}
+.bj .back {
+  transform: rotateY(180deg);
+}
+.bj .back,
+.bj .shoe i {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--felt-deep) 0 3px,
+    color-mix(in srgb, var(--felt-deep) 80%, #000) 3px 4px
+  );
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--card-paper) 85%, transparent),
+    0 0 0 1px var(--card-edge),
+    -2px 0 4px -2px rgb(0 0 0 / 0.28);
+}
+.bj .pc.flipping {
+  animation: bj-lift var(--t-slow) var(--ease-in-out);
+  z-index: 1;
+}
+@keyframes bj-lift {
+  50% {
+    translate: 0 -6px;
+    scale: 1.04;
+  }
+}
+.bj .pc.out {
+  animation: bj-sweep 200ms var(--ease-out) calc(var(--i) * 30ms) forwards;
+}
+@keyframes bj-sweep {
+  to {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+/* The losing hand dims as one layer, so fanned cards don't show through each other. */
+.bj .hand {
+  transition: opacity var(--move) ease;
+}
+.bj .hand.lost {
+  opacity: 0.5;
+}
+
+/* Face: corner index top-left (the fan covers the rest), one pip or court letter in the centre. */
+.bj .face {
+  background: var(--card-paper);
+  color: var(--suit-black);
+}
+.bj .face.red {
+  color: var(--suit-red);
+}
+.bj .face svg {
+  fill: currentColor;
+  stroke: none;
+}
+.bj .idx {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.bj .idx svg {
+  width: 10px;
+  height: 10px;
+}
+.bj .pip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+}
+.bj .pip svg {
+  width: 22px;
+  height: 22px;
+}
+.bj .pip.court b {
+  font-size: var(--step-1);
+  font-weight: 500;
+  line-height: 1;
+}
+.bj .pip.court svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The bottom slot: Hit/Stand, or the outcome, or a failed action. */
+.bj-foot {
+  grid-row: 5;
+  min-height: 0;
+}
+.bj-acts {
+  align-self: end;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+.bj-acts button {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  height: 2.5rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--felt-fg) 14%, var(--felt));
+  color: var(--felt-fg);
+  font-size: var(--step--1);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--quick) ease,
+    opacity var(--move) ease,
+    scale var(--quick) ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bj-acts:not(.wait) button:hover {
+    background: color-mix(in srgb, var(--felt-fg) 22%, var(--felt));
+  }
+}
+.bj-acts:not(.wait) button:active {
+  scale: 0.97;
+  transition: scale var(--t-press) ease-out;
+}
+.bj-acts button:focus-visible,
+.bj-fail .link:focus-visible {
+  outline: 2px solid var(--felt-fg);
+  outline-offset: 2px;
+}
+.bj-acts button[aria-busy="true"] {
+  pointer-events: none;
+}
+/* Dime's turn. */
+.bj-acts.wait button {
+  opacity: 0.4;
+  cursor: default;
+}
+.bj-out {
+  align-self: center;
+  display: grid;
+  gap: 2px;
+  padding: 0 var(--card-pad);
+  min-width: 0;
+}
+.bj-out b {
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bj-out .tab {
+  font-variant-numeric: tabular-nums;
+}
+.bj-out > span {
+  font-size: var(--step--2);
+  line-height: 1.35;
+  color: var(--felt-muted);
+  min-height: 1.35em;
+}
+.bj-fail {
+  grid-auto-flow: column;
+  justify-content: start;
+  align-items: baseline;
+  gap: var(--s2);
+}
+.bj-fail .link {
+  color: var(--felt-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

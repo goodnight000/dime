@@ -8,9 +8,9 @@ beforeEach(reset);
 const swipe = (amount: number) =>
   state.txns.push({ id: id(), at: now().toISOString(), merchant: "Blue Bottle", amount, category: "coffee", kind: "spend" });
 
-test("seed: today's number is about $43", () => {
-  expect(money.today(state, now())).toBeGreaterThanOrEqual(40);
-  expect(money.today(state, now())).toBeLessThanOrEqual(46);
+test("seed: today's number is about $311", () => {
+  expect(money.today(state, now())).toBeGreaterThanOrEqual(300);
+  expect(money.today(state, now())).toBeLessThanOrEqual(320);
 });
 
 test("a $7 swipe drops today by 7, and a covered one does not", () => {
@@ -41,4 +41,13 @@ test("overspending shrinks tomorrow and sweeps nothing", () => {
   midnight();
   expect(state.goal.saved).toBe(saved);
   expect(money.budget(state, now())).toBeLessThan(budget);
+});
+
+test("a blackjack loss leaves today, pending a fund or in the ledger", () => {
+  const before = money.today(state, now());
+  state.pendingInvest = { amount: 10, reason: "blackjack", at: now().toISOString() };
+  expect(money.today(state, now())).toBe(before - 10);
+  state.ledger.push({ fund: "VOO", ...state.pendingInvest });
+  state.pendingInvest = null;
+  expect(money.today(state, now())).toBe(before - 10);
 });

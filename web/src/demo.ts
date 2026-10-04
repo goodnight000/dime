@@ -46,9 +46,25 @@ const demo: Screen = (main, _session, current) => {
       <h2>Wave 1</h2>
       <div class="actions">
         <button class="pill" data-action="cfo-scan">CFO scan</button>
-        <button class="pill" data-action="friend-swipe" data-body='{"who":"Penny","merchant":"DoorDash","amount":38}'>Penny swipes DoorDash</button>
         <button class="pill" data-action="force-blackjack" data-body='{"result":"win"}'>Force blackjack win</button>
+        <button class="pill" data-action="force-blackjack" data-body='{"result":"lose"}'>Force blackjack lose</button>
+        <button class="pill" data-action="force-blackjack" data-body='{"result":"push"}'>Force blackjack push</button>
+        <button class="pill" data-action="force-blackjack" data-body='{"result":"fair"}'>Blackjack fair</button>
+        <button class="pill" data-action="disconnect" data-body='{"id":"chase"}'>Disconnect Chase</button>
       </div>
+    </section>
+    <section>
+      <h2>Group</h2>
+      <div class="actions">
+        <button class="pill" data-action="friend-swipe" data-body='{"who":"Penny","merchant":"DoorDash","amount":38}'>Penny · DoorDash · $38</button>
+        <button class="pill" data-action="friend-swipe" data-body='{"who":"Penny","merchant":"DoorDash","amount":52}'>Penny · DoorDash · $52</button>
+      </div>
+      <form class="swipe friend-swipe">
+        <select name="who" aria-label="Who"><option>Penny</option><option>Maya</option><option>Sam</option></select>
+        <input name="merchant" placeholder="Merchant" required />
+        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
+        <button class="pill" type="submit">Friend swipe</button>
+      </form>
     </section>
     <p class="note" aria-live="polite"></p>`;
   const note = main.querySelector<HTMLElement>(".note")!;
@@ -76,6 +92,12 @@ const demo: Screen = (main, _session, current) => {
     e.preventDefault();
     const f = new FormData(form);
     void fire("swipe", { merchant: f.get("merchant"), amount: Number(f.get("amount")), category: f.get("category") });
+  };
+  const friendForm = main.querySelector<HTMLFormElement>(".friend-swipe")!;
+  friendForm.onsubmit = (e) => {
+    e.preventDefault();
+    const f = new FormData(friendForm);
+    void fire("friend-swipe", { who: f.get("who"), merchant: f.get("merchant"), amount: Number(f.get("amount")) });
   };
   for (const b of main.querySelectorAll<HTMLButtonElement>("[data-action]"))
     b.onclick = () => void fire(b.dataset.action!, b.dataset.body ? JSON.parse(b.dataset.body) : {});

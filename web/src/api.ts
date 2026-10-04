@@ -34,6 +34,7 @@ export type Snapshot = {
   messages: ThreadMessage[];
   apps: Record<string, App>;
   pending: boolean; // Dime is composing a reply
+  typer?: string | null; // group: the friend typing (null = Dime)
   now: string; // demo clock
 };
 

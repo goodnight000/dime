@@ -241,3 +241,9 @@ Drop `summary` for the lowest latency: it's an extra LLM pass per result. Highli
 6. **Fallback stays:** if `NEON_AI_GATEWAY_TOKEN` is unset or the call throws, `voice.ts` uses template replies, so the demo never depends on the network.
 
 Skipped: streaming to the browser, prompt caching, and the Anthropic endpoint. Add streaming if the 1s poll feels slow, and add the Anthropic endpoint only if `/v1` tool calls misbehave.
+
+## Live gateway check (2026-10-04, Charles's branch)
+
+- Base URL works; `GET /v1/models` lists `gpt-5-6-luna` and `gpt-6-astra` (there is no `gpt-6-luna`). Charles picked "GPT-6 Luna"; the matching id is **`gpt-5-6-luna`**.
+- Tool calling on `/v1/chat/completions` needs **`"reasoning_effort": "none"`** in the request body for `gpt-5-6-luna`; without it the gateway returns 400 "Function tools with reasoning_effort are not supported". With it: a proper `tool_calls` reply in ~1.2s.
+- `gpt-6-astra` rejects `reasoning_effort: "none"` (only low/medium/high/xhigh) and so can't use function tools on chat/completions at all; it would need `/v1/responses`.

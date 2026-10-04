@@ -2,49 +2,19 @@
 import { state, reset, type Thread, type Message } from "./state.ts";
 import { now } from "./clock.ts";
 import * as money from "./money.ts";
+import { summary } from "./summary.ts";
+import * as accounts from "./accounts.ts";
 import { run } from "./apps/index.ts";
+import { refresh as refreshToday } from "./apps/today.ts";
 import { post, reply } from "./voice.ts";
 import { morning, purchase, midnight } from "./events.ts";
+import { cfoScan } from "./cfo.ts";
+import { friendSwipe, typing as groupTyper } from "./friends.ts";
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const bad = (error: string, status = 400) => json({ error }, status);
 const thread = (v: unknown): Thread => (v === "group" ? "group" : "dime");
 const body = (req: Request) => req.json().catch(() => ({})) as Promise<any>;
-
-function summary() {
-  const at = now();
-  const monthStart = new Date(at.getFullYear(), at.getMonth(), 1);
-  const month = state.txns.filter((t) => new Date(t.at) >= monthStart && new Date(t.at) <= at);
-  const byCategory: Record<string, number> = {};
-  for (const t of month) if (t.kind === "spend" && !t.covered) byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
-  const byFund: Record<string, number> = {};
-  for (const l of state.ledger) byFund[l.fund] = (byFund[l.fund] ?? 0) + l.amount;
-  // One cell per day this month so far: the allowance, what went out, what was swept.
-  const calendar = [];
-  for (let d = 1; d <= at.getDate(); d++) {
-    const day = new Date(at.getFullYear(), at.getMonth(), d, 12);
-    const key = day.toDateString();
-    calendar.push({
-      date: day.toISOString().slice(0, 10),
-      budget: money.budget(state, day),
-      spent: money.spentToday(state, day),
-      swept: state.sweeps.filter((s) => new Date(s.at).toDateString() === key).reduce((t, s) => t + s.amount, 0),
-    });
-  }
-  return {
-    now: at.toISOString(),
-    today: money.today(state, at),
-    budget: money.budget(state, at),
-    pool: money.pool(state, at),
-    days_left: money.daysLeft(at),
-    goal: { ...state.goal, pct: money.pct(state), pace: money.pace(state, at), eta: money.eta(state, at) },
-    ledger: byFund,
-    spend_by_category: byCategory,
-    calendar,
-    txns: month,
-    user: state.user,
-  };
-}
 
 const demo: Record<string, (b: any) => unknown> = {
   swipe: (b) => {
@@ -59,10 +29,18 @@ const demo: Record<string, (b: any) => unknown> = {
     await morning();
   },
   reset: () => reset(),
+  disconnect: (b) => accounts.disconnect(String(b.id || "chase")), // replay the connect flow
   // Stubs for wave 1 owners.
-  "cfo-scan": () => {},
-  "friend-swipe": () => {},
-  "force-blackjack": () => {},
+  "cfo-scan": () => cfoScan(),
+  "friend-swipe": (b) => {
+    const amount = Number(b.amount);
+    if (!["Penny", "Maya", "Sam"].includes(b.who) || !b.merchant || !(amount > 0)) throw new Error("who, merchant and a positive amount");
+    friendSwipe({ who: b.who, merchant: String(b.merchant), amount });
+  },
+  // Rigs the next blackjack resolution: win | lose | push; anything else ("fair") clears it.
+  "force-blackjack": (b) => {
+    state.forceBlackjack = ["win", "lose", "push"].includes(b.result) ? b.result : null;
+  },
 };
 
 const server = Bun.serve({
@@ -73,10 +51,11 @@ const server = Bun.serve({
 
     "/api/messages": {
       GET: (req) => {
+        refreshToday(); // the latest today card rolls with every purchase, loss or win
         const t = thread(new URL(req.url).searchParams.get("thread"));
         const messages = state.messages.filter((m) => m.thread === t);
         const apps = Object.fromEntries(messages.filter((m) => m.app).map((m) => [m.app, state.apps[m.app!]]));
-        return json({ messages, apps, pending: state.typing[t] > 0, now: now().toISOString() });
+        return json({ messages, apps, pending: state.typing[t] > 0, typer: t === "group" ? groupTyper() : null, now: now().toISOString() });
       },
       POST: async (req) => {
         const b = await body(req);
@@ -113,13 +92,11 @@ const server = Bun.serve({
 
     "/api/summary": () => json(summary()),
 
-    "/api/accounts": () => json({ accounts: state.accounts }),
+    "/api/accounts": () => json(accounts.accounts()),
     "/api/accounts/:id/connect": {
       POST: (req) => {
-        const a = state.accounts.find((x) => x.id === req.params.id);
-        if (!a) return bad("not_found", 404);
-        a.connected = true;
-        return json({ account: a });
+        const a = accounts.connect(req.params.id);
+        return a ? json({ account: a }) : bad("not_found", 404);
       },
     },
 
