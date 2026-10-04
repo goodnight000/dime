@@ -20,7 +20,7 @@ Dime only texts first when it helps: going over (or nearly over) today, a big or
 | 1 | Type in the app: `how much can I spend today?` | Dime answers like a friend with $311 (worded live from its tools). Sidebar: "$311 left today". | ~4s |
 | 2 | Panel **Blue Bottle matcha $7** (`1`) | Nothing in the chat, on purpose: a $7 matcha isn't news. The sidebar rolls $311 → $304. ("It doesn't text you about coffee. It texts you when it matters.") | ~2s |
 | 3 | Type in the app: `should I buy these sneakers for $280?` (or panel **Sneakers $280**, `S`) | Dime: "$280 fits today, but it pushes the iPhone 17 Pro 4 days later… beat me and they're on the house", then the blackjack card deals. | card ~4s |
-| 3b | In the card: **Stand** (or Hit first) | Hole card flips, Dime draws; "Lost. $280 → S&P 500" (his fund since Sep 24). Dime: "house wins 😌 but that $280 just became S&P 500 money…". Sidebar drops to $24. | Dime's line ~4s after Stand; wait for it before 3c |
+| 3b | In the card: **Stand** (or Hit first) | Hole card flips, Dime draws; "Lost. $280 → S&P 500" (his fund since Sep 24). Dime: "i won 😌 no sneakers, but $280 just became S&P 500 money…". Sidebar drops to $24. | Dime's line ~4s after Stand; wait for it before 3c |
 | 3c | Optional. Type: `where do my losses go? show me the options` | Dime: "right now they land in the S&P 500…" + the fund picker with each fund's description and risk. Leave it, or tap a fund to switch. (Code opens the card for this phrasing every time.) | ~2s |
 | 4 | Panel **Scan** (`C`) | Dime: "found 3 things…" + three CFO cards (Comcast, Hulu, idle cash). | cards land by ~4s |
 | 4b | On the Comcast card: **Call Comcast** | "Approved · calling Comcast" with dots, 3.2s, then "✓ Back to $47/mo. Saving $23/mo." Dime: "Comcast is back to $47/mo…" + a follow-up card offering the $23/mo to the iPhone (leave it, or **Send $23/mo** for an extra goal fill). | ~7s |
@@ -35,7 +35,7 @@ Dime only texts first when it helps: going over (or nearly over) today, a big or
 | 10 | Click **Dime**. Panel **Fill goal** (`G`) | The 100% milestone: Dime: "the $311 you didn't spend today just finished it off 😭", "want me to order it?" + the goal card rising to 100% with one spring, then **Order it / Not yet**. | ~8s to the buttons |
 | 10b | In the card: **Order it** | "Ordering from Apple" with dots, then "✓ Ordered. iPhone 17 Pro arrives Thursday." Dime: "…the goal fund covered the $1,099, today's $311 stays untouched", then "Tokyo trip is next" (the goal he queued on Sep 22). End here. | ~5s |
 
-Dashboard and Accounts come before the goal finale on purpose: after **Order it** the iPhone is gone and Tokyo becomes the goal at a few percent, so the dashboard would lose its 62% ring.
+Dashboard and Accounts come before the goal finale on purpose: after **Order it** the iPhone is gone and Tokyo becomes the goal at $0, so the dashboard would lose its 62% ring.
 
 ## If something goes wrong live
 

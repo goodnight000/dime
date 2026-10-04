@@ -1,0 +1,15 @@
+{
+  "name": "dime-video",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@remotion/cli": "4",
+    "@remotion/google-fonts": "4",
+    "@remotion/media-utils": "4",
+    "@types/react": "^19.3.0",
+    "react": "19",
+    "react-dom": "19",
+    "remotion": "4",
+    "typescript": "^7.0.2"
+  }
+}
