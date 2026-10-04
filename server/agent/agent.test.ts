@@ -74,7 +74,7 @@ test("without creds: templates, no gateway call", async () => {
   calls.length = 0;
   const out = await ask("hi");
   expect(calls.length).toBe(0);
-  expect(out.map((m) => m.body)).toContain(`${left()} left today`);
+  expect(out.map((m) => m.body)).toContain(`you've got ${left()} to play with today`);
 }, 15_000);
 
 test("faithful: every number in the words is in the facts", () => {
@@ -85,27 +85,32 @@ test("faithful: every number in the words is in the facts", () => {
   expect(faithful("iPhone 2 days later", facts)).toBe(false);
 });
 
-// A swipe's reply: the model's words when they keep the numbers, else the template, same order.
-async function swipe(words: string) {
+// A swipe worth a text (a big, unusual one): the model's words when they keep the numbers, else the template.
+async function swipe(words: string, amount = 180) {
+  reset();
   eventWords = words;
   const n = state.messages.length;
-  await purchase({ merchant: "Blue Bottle", amount: 7, category: "coffee" });
+  await purchase({ merchant: "Target", amount, category: "shopping" });
   return state.messages.slice(n).filter((m) => m.thread === "dime").map((m) => m.body);
 }
+const TEMPLATE = "whoa, $180 at Target? that's not your usual";
 
 test("events: model words with the facts' numbers, template when a number is off or creds are gone", async () => {
-  reset();
   process.env.NEON_AI_GATEWAY_URL = `http://localhost:${fake.port}`;
   process.env.NEON_AI_GATEWAY_KEY = "nt_test";
   try {
-    const ok = await swipe(`matcha again? ${left().replace(/\d+/, (d) => String(Number(d) - 7))} left today`);
-    expect(ok[0]).toBe(`matcha again? ${left()} left today`);
-    const off = await swipe("matcha again? $41 left today");
-    expect(off[0]).toBe(`Blue Bottle $7. ${left()} left today`);
+    reset();
+    const after = usd(money.today(state, now()) - 180);
+    const ok = await swipe(`ok $180 at Target?? you've got ${after} left`);
+    expect(ok[0]).toBe(`ok $180 at Target?? you've got ${left()} left`);
+    const off = await swipe("$180 at Target, $41 left");
+    expect(off[0]).toBe(TEMPLATE);
+    const quiet = await swipe("should never be asked", 7); // an ordinary swipe: Dime says nothing
+    expect(quiet).toEqual([]);
   } finally {
     delete process.env.NEON_AI_GATEWAY_URL;
     delete process.env.NEON_AI_GATEWAY_KEY;
   }
   const out = await swipe("never asked");
-  expect(out[0]).toBe(`Blue Bottle $7. ${left()} left today`);
+  expect(out[0]).toBe(TEMPLATE);
 }, 20_000);

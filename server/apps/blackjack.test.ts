@@ -33,6 +33,7 @@ test("rigged rounds resolve the forced way with real totals, then the rig clears
 });
 
 test("a win is a covered purchase; a loss with no fund waits and still leaves today", () => {
+  state.user.fund = null; // the seed's history already picked one
   const before = money.today(state, now());
   play("win", "stand");
   expect(state.txns.at(-1)).toMatchObject({ merchant: "Sneakers", amount: 20, covered: true });
