@@ -98,6 +98,23 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       return { sent: true, current_fund: state.user.fund };
     }),
     tool(
+      "set_goal",
+      "Set his next savings goal when he names one (after a goal is ordered, or when he wants to switch). Price in dollars; whatever is already saved carries over.",
+      Type.Object({
+        name: Type.String({ description: "Short name, e.g. 'Tokyo trip'" }),
+        price: Type.Number(),
+        emoji: Type.String({ description: "One emoji for it" }),
+      }),
+      ({ name, price, emoji }) => {
+        const at = now();
+        state.goal = { name, price, saved: Math.min(state.goal.saved, price), emoji };
+        const eta = money.eta(state, at);
+        const app = open("goal", { delta: 0 });
+        apps.push(app);
+        return { name, price, saved: state.goal.saved, pct: money.pct(state), pace_per_day: Math.round(money.pace(state, at)), eta_days: eta, eta_date: date(money.etaDate(state, at, eta)) };
+      },
+    ),
+    tool(
       "react",
       "Tapback his latest message, like tapping a reaction in iMessage. Only when a reaction says it better than words; most messages get none. Calling it twice replaces the first.",
       Type.Object({

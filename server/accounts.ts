@@ -10,6 +10,7 @@ const CATALOG: Record<string, Meta> = {
   chase: { name: "Chase", kind: "bank", glyph: "bank", blurb: "Checking and savings", numbers: "Checking ••4821 · Savings ••0937", connected: true },
   dime: { name: "Dime Invest", kind: "brokerage", glyph: "mark", blurb: "Paper brokerage", numbers: "", connected: true },
   amex: { name: "Amex Gold", kind: "bank", glyph: "card", blurb: "Credit card", numbers: "Gold card ••3007", connected: false },
+  venmo: { name: "Venmo", kind: "bank", glyph: "card", blurb: "Pays out friend bets", numbers: "@charles-z ••2290", connected: false },
   robinhood: { name: "Robinhood", kind: "brokerage", glyph: "chart", blurb: "Stocks and crypto", numbers: "Individual ••5512", connected: false },
 };
 
