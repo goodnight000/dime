@@ -18,7 +18,7 @@ test("a card short of the price has no ask; a full one orders without touching t
   const app = open("goal", { id: g.id, delta: 100 });
   expect(app.state.order).toEqual({ status: "open", outcome: null });
   expect(app.state.to.pct).toBe(100);
-  expect(app.state.note).toBe("Full");
+  expect(app.state.note).toBe("+$100 from today"); // money only; the order row is the status
   const today = money.today(state, now());
   await run(app.id, "order", {});
   expect(app.state.order.status).toBe("ordering");
@@ -36,7 +36,7 @@ test("a goal with nothing to buy is Done when full: no order ask", () => {
   fund.saved = fund.price;
   const s = open("goal", { id: fund.id, delta: 50 }).state;
   expect(s.order).toBeUndefined();
-  expect(s.note).toBe("Done");
+  expect(s.note).toBe("+$50 from today");
 });
 
 test("goals API: add after, move first, remove rolls savings on, keeps one", async () => {

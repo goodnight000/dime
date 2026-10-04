@@ -3,7 +3,7 @@ import { api } from "./api.ts";
 import { roll, usd, signed } from "./num.ts";
 import { T, reduced, later } from "./motion.ts";
 import type { Screen } from "./main.ts";
-import { brand, categoryIcon } from "./brands.ts";
+import { categoryIcon } from "./brands.ts";
 import { ring, face, level } from "./ring.ts";
 import { mountCalendar } from "./calendar.ts";
 
@@ -31,7 +31,6 @@ type Summary = {
   spending: { category: string; label: string; amount: number }[];
 };
 
-const FUND_COLOR: Record<string, string> = { VOO: "var(--fg)", QQQ: "var(--blue)", SOXX: "var(--money)", DRAM: "var(--amber)", CASH: "var(--muted)" };
 const local = (ymd: string) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -61,17 +60,12 @@ const dashboard: Screen = (main, _session, current) => {
     <div class="board still">
       <aside class="rail">
         <section class="today" aria-label="Today">
-          <p class="lbl">Today</p>
+          <p class="lbl">Left today</p>
           <span class="num hero big" data-k="today">—</span>
           <div class="slot sub">
             <p class="on">of <span class="num" data-k="budget">—</span> this morning</p>
             <p class="overline"><span class="num" data-k="over">—</span> over today</p>
           </div>
-          <dl class="kv">
-            <div><dt>Pool left</dt><dd><span class="num" data-k="pool">—</span></dd></div>
-            <div><dt>Days left</dt><dd><span class="num" data-k="days">—</span></dd></div>
-            <div><dt>To goal</dt><dd><span class="num" data-k="togo">—</span></dd></div>
-          </dl>
         </section>
         <section class="goal" aria-label="Goals">
           ${ring(null, 0)}
@@ -83,42 +77,36 @@ const dashboard: Screen = (main, _session, current) => {
           </div>
           <ol class="gq" aria-label="Up next"></ol>
         </section>
-        <section class="recent" aria-labelledby="rc-h">
-          <h2 id="rc-h">Recent</h2>
-          <ul class="txs"></ul>
+        <section class="spending" aria-labelledby="sp-h">
+          <h2 id="sp-h">Spending <small class="range"></small></h2>
+          <ul class="bars"></ul>
         </section>
       </aside>
       <div class="work">
         <section class="days" aria-labelledby="days-h"></section>
-        <section class="invested" aria-labelledby="inv-h">
-          <header>
+        <section class="invested ib-body" aria-labelledby="inv-h">
+          <div class="plot">
             <div class="ih">
               <h2 id="inv-h">Invested</h2>
               <small class="waiting"><span class="num" data-k="waiting"></span> waiting for a fund</small>
             </div>
+            <div class="chart">
+              <svg aria-hidden="true"><path class="line"/></svg>
+              <i class="end-dot" hidden></i>
+              <i class="hair"></i>
+              <i class="hover-dot"></i>
+              <div class="tip" role="tooltip"></div>
+            </div>
+            <div class="xl"><span></span><span></span></div>
+          </div>
+          <div class="iside">
             <div class="tot">
               <span class="num hero" data-k="total">—</span>
               <small class="delta"><span class="num" data-k="delta">—</span> this month</small>
             </div>
-          </header>
-          <div class="chart">
-            <svg aria-hidden="true"><g class="grid"><line/><line/><line/></g><path class="line"/></svg>
-            <i class="end-dot" hidden></i>
-            <span class="end-label num" hidden></span>
-            <i class="hair"></i>
-            <i class="hover-dot"></i>
-            <div class="tip" role="tooltip"></div>
+            <ul class="funds"></ul>
           </div>
-          <div class="xl"><span></span><span></span><span></span></div>
-          <div class="alloc" aria-hidden="true"></div>
-          <ul class="rows funds"></ul>
         </section>
-        <div class="pair">
-          <section class="spending" aria-labelledby="sp-h">
-            <h2 id="sp-h">Spending <small class="range"></small></h2>
-            <ul class="bars"></ul>
-          </section>
-        </div>
       </div>
     </div>`;
 
@@ -130,7 +118,6 @@ const dashboard: Screen = (main, _session, current) => {
   const svg = $<SVGSVGElement>(".chart svg");
   const path = $<SVGPathElement>(".chart .line");
   const endDot = $(".end-dot");
-  const endLabel = $(".end-label");
   const hair = $(".hair");
   const hoverDot = $(".hover-dot");
   const tip = $(".tip");
@@ -149,21 +136,14 @@ const dashboard: Screen = (main, _session, current) => {
     const h = chart.clientHeight;
     if (!w || !h) return;
     svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    const pad = 12;
-    const gy = [pad, h / 2, h - pad];
-    svg.querySelectorAll("line").forEach((l, i) => {
-      l.setAttribute("x1", "0");
-      l.setAttribute("x2", String(w));
-      l.setAttribute("y1", String(Math.round(gy[i]) + 0.5));
-      l.setAttribute("y2", String(Math.round(gy[i]) + 0.5));
-    });
+    const pad = 6;
     const vals = s.invested.series.map((p) => p.value);
     const empty = vals.every((v) => v === 0);
     let lo = Math.min(...vals);
     let hi = Math.max(...vals);
     const span = Math.max(hi - lo, hi * 0.02, 1);
     lo -= span * 0.12;
-    hi += span * 0.3; // headroom: the end label sits above the dot, clear of the top gridline
+    hi += span * 0.12;
     const right = w - 4; // the end dot's radius stays inside
     pts = vals.map((v, i) => ({
       x: (i / (vals.length - 1)) * right,
@@ -172,10 +152,8 @@ const dashboard: Screen = (main, _session, current) => {
     // Stepped: hold each close until the next day, then step. It's a ledger, not a ticker.
     path.setAttribute("d", pts.map((p, i) => (i ? `H${p.x.toFixed(1)}V${p.y.toFixed(1)}` : `M${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(""));
     const end = pts[pts.length - 1];
-    endDot.hidden = endLabel.hidden = empty;
+    endDot.hidden = empty; // no end label: the total above says it
     endDot.style.translate = `${end.x}px ${end.y}px`;
-    endLabel.style.translate = `${end.x}px ${end.y}px`;
-    roll(endLabel, usd(s.invested.total, true));
   }
 
   function drawIn() {
@@ -208,6 +186,8 @@ const dashboard: Screen = (main, _session, current) => {
   chart.addEventListener("pointermove", hover);
   chart.addEventListener("pointerleave", () => chart.classList.remove("hovering"));
 
+  // Fund rows: name, ticker and return since bought in one line, value right. No swatches or
+  // allocation bar: the values already say the split.
   function drawFunds(s: Summary) {
     const list = $(".funds");
     const funds = s.invested.funds;
@@ -217,40 +197,35 @@ const dashboard: Screen = (main, _session, current) => {
       list.innerHTML = funds.length
         ? funds
             .map(
-              (f) => `<li><div class="row fund" data-id="${f.id}">
-                <i class="sw" style="background:${FUND_COLOR[f.id] ?? "var(--muted)"}"></i>
-                <span class="nm"><b>${esc(f.name)}</b>${f.ticker ? ` <small>${esc(f.ticker)}</small>` : ""}</span>
-                <span class="num val"></span>
-                <span class="num chg"></span>
-              </div></li>`,
+              (f) => `<li data-id="${f.id}"><span class="nm"><b>${esc(f.name)}</b><small>${f.ticker ? `${esc(f.ticker)} · ` : ""}<span class="num chg"></span> since bought</small></span><span class="num val"></span></li>`,
             )
             .join("")
         : `<li class="empty">Nothing invested yet. Lose a hand and it lands here.</li>`;
-      $(".alloc").innerHTML = funds.map((f) => `<i data-id="${f.id}" style="background:${FUND_COLOR[f.id] ?? "var(--muted)"}"></i>`).join("");
     }
     for (const f of funds) {
       const row = list.querySelector<HTMLElement>(`[data-id="${f.id}"]`)!;
       roll(row.querySelector<HTMLElement>(".val")!, usd(f.value, true));
       const chg = row.querySelector<HTMLElement>(".chg")!;
       roll(chg, pct(f.change_pct));
-      chg.classList.toggle("up", f.change_pct > 0);
-      $(`.alloc [data-id="${f.id}"]`).style.flexGrow = String(f.value);
+      chg.classList.toggle("pos", f.change_pct > 0);
+      chg.classList.toggle("neg", f.change_pct < 0);
     }
   }
 
   function drawSpending(s: Summary) {
     const list = $(".bars");
-    const key = s.spending.map((c) => c.category).join();
+    const top5 = s.spending.slice(0, 5);
+    const key = top5.map((c) => c.category).join();
     if (list.dataset.key !== key) {
       list.dataset.key = key;
-      list.innerHTML = s.spending.length
-        ? s.spending
+      list.innerHTML = top5.length
+        ? top5
             .map((c) => `<li data-c="${esc(c.category)}"><span class="cat">${categoryIcon(c.category)}<span>${esc(c.label)}</span></span><span class="bar"><i></i></span><span class="num amt"></span></li>`)
             .join("")
         : `<li class="empty">No spending yet this month.</li>`;
     }
-    const top = Math.max(1, ...s.spending.map((c) => c.amount));
-    s.spending.forEach((c, i) => {
+    const top = Math.max(1, ...top5.map((c) => c.amount));
+    top5.forEach((c, i) => {
       const li = list.children[i] as HTMLElement;
       li.querySelector<HTMLElement>(".bar i")!.style.setProperty("--r", String(c.amount / top));
       li.classList.toggle("top", i === 0);
@@ -268,7 +243,9 @@ const dashboard: Screen = (main, _session, current) => {
     const at = new Date(s.now);
     $(".date").textContent = day.format(at);
     $(".range").textContent = at.getDate() === 1 ? short.format(at) : `${short.format(new Date(at.getFullYear(), at.getMonth(), 1))}–${at.getDate()}`;
+    const railMoved = k("today").dataset.v !== usd(s.today);
     set("today", usd(s.today));
+    k("today").classList.toggle("neg", s.over > 0); // a balance, so neutral; red only once over
     set("budget", usd(s.budget));
     if (s.over > 0) set("over", usd(s.over));
     const sub = $(".sub");
@@ -276,10 +253,6 @@ const dashboard: Screen = (main, _session, current) => {
     if (!want.classList.contains("on")) {
       for (const c of sub.children) c.classList.toggle("on", c === want);
     }
-    const railMoved = k("pool").dataset.v !== usd(s.pool) || k("days").dataset.v !== String(s.days_left);
-    set("pool", usd(s.pool));
-    set("days", String(s.days_left));
-    set("togo", usd(s.to_goal));
     // The stack: the first goal still in play large (the one saving now, or a full one waiting to be
     // ordered), the rest as mini rings in priority order. Ordered and finished goals leave it.
     const live = s.goals.filter((g) => g.status !== "ordered" && g.status !== "done");
@@ -303,7 +276,7 @@ const dashboard: Screen = (main, _session, current) => {
       if (key !== queueKey) {
         queueKey = key;
         $(".gq").innerHTML = rest
-          .map((g, i) => `<li><span class="gn">${i + 2}</span>${ring(g, g.saved <= 0 ? 0 : g.pct / 100)}<span class="gqt"><b>${esc(g.name)}</b><small>${usd(g.saved)} of ${usd(g.price)}</small></span><small class="gd${g.status === "ready" ? " ready" : ""}">${when(g).replace("Saved by ", "")}</small></li>`)
+          .map((g, i) => `<li>${ring(g, g.saved <= 0 ? 0 : g.pct / 100)}<span class="gqt"><b>${esc(g.name)}</b><small>${usd(g.saved)} of ${usd(g.price)}</small></span><small class="gd${g.status === "ready" ? " ready" : ""}">${when(g).replace("Saved by ", "")}</small></li>`)
           .join("");
       }
     };
@@ -316,40 +289,17 @@ const dashboard: Screen = (main, _session, current) => {
     waiting.classList.toggle("on", s.invested.waiting > 0);
     const delta = k("delta");
     roll(delta, signed(s.invested.month_delta, true));
-    delta.parentElement!.classList.toggle("up", s.invested.month_delta > 0);
+    delta.classList.toggle("pos", s.invested.month_delta > 0);
+    delta.classList.toggle("neg", s.invested.month_delta < 0);
     const series = s.invested.series;
     const xl = $(".xl").children;
-    [0, Math.floor(series.length / 2), series.length - 1].forEach((i, j) => (xl[j].textContent = short.format(local(series[i].date))));
+    [0, series.length - 1].forEach((i, j) => (xl[j].textContent = short.format(local(series[i].date))));
     drawChart(s);
     drawFunds(s);
     drawSpending(s);
     if (first) drawIn();
   }
 
-
-  // Recent: the last four card swipes and bills, from the bank feed Accounts shows (GET /api/accounts).
-  const clock = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
-  let txKey: string | null = null;
-  function drawRecent(recent: { id: string; at: string; merchant: string; amount: number }[], now: string) {
-    const list = $(".txs");
-    const rows = recent.slice(0, 4);
-    const key = rows.map((t) => t.id).join();
-    if (key === txKey) return;
-    const before = new Set(txKey?.split(",") ?? []);
-    const animate = txKey !== null && !reduced();
-    txKey = key;
-    const today = new Date(now).toDateString();
-    list.innerHTML = rows.length
-      ? rows
-          .map((t) => {
-            const d = new Date(t.at);
-            const when = d.toDateString() === today ? clock.format(d) : short.format(d);
-            const amt = (t.amount > 0 ? "+" : "") + usd(t.amount, rows.some((x) => !Number.isInteger(x.amount)));
-            return `<li${animate && !before.has(t.id) ? ' class="in"' : ""}>${brand(t.merchant)}<span class="tt"><b>${esc(t.merchant)}</b><small>${when}</small></span><span class="v${t.amount > 0 ? " credit" : ""}">${amt}</span></li>`;
-          })
-          .join("")
-      : `<li class="empty">Connect Chase to see transactions.</li>`;
-  }
 
   const ro = new ResizeObserver(() => last && drawChart(last));
   ro.observe(chart);
@@ -359,15 +309,11 @@ const dashboard: Screen = (main, _session, current) => {
   const tick = async () => {
     if (!alive()) return ro.disconnect();
     try {
-      const [s, acct] = await Promise.all([
-        api<Summary>("GET", "/summary"),
-        api<{ recent: { id: string; at: string; merchant: string; amount: number }[] }>("GET", "/accounts").catch(() => null),
-      ]);
+      const s = await api<Summary>("GET", "/summary");
       if (!alive()) return ro.disconnect();
       cached = s;
       draw(s);
       void cal.tick();
-      if (acct) drawRecent(acct.recent, s.now);
       // First paint is still (§ rule 3): transitions stay off until the first data is laid out.
       if (board.classList.contains("still")) void board.offsetWidth, board.classList.remove("still");
       board.classList.remove("stale");

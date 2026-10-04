@@ -222,7 +222,7 @@ main.dash .days .legend .od {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--danger);
+  background: var(--neg);
 }
 main.dash .days .c .od {
   position: absolute;
@@ -230,34 +230,7 @@ main.dash .days .c .od {
   right: 6px;
   box-shadow: 0 0 0 1.5px var(--pane);
 }
-main.dash .days .marks {
-  align-self: end;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-}
-main.dash .days .marks .brand {
-  --bs: 1rem;
-}
-main.dash .days .marks .brand.plain {
-  background: var(--pane);
-  color: var(--fg);
-}
-main.dash .days .marks .brand.plain > svg {
-  width: 70%;
-  height: 70%;
-}
-main.dash .days .marks small {
-  margin-left: 1px;
-  font-size: var(--step--2);
-  font-weight: 500;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Legend: the ramp with its words, the scale in dollars, the over dot. */
+/* Legend: the ramp with its two words and the over dot. The day panel carries the dollars. */
 main.dash .days .legend {
   display: flex;
   flex-wrap: wrap;
@@ -289,9 +262,6 @@ main.dash .days .ramp .lv2 { background: var(--h2); }
 main.dash .days .ramp .lv3 { background: var(--h3); }
 main.dash .days .ramp .lv4 { background: var(--h4); }
 main.dash .days .ramp .lv5 { background: var(--h5); }
-main.dash .days .scale {
-  font-variant-numeric: tabular-nums;
-}
 main.dash .days .key-over {
   display: flex;
   align-items: center;
@@ -357,12 +327,12 @@ main.dash .days .tag {
   white-space: nowrap;
 }
 main.dash .days .tag.over {
-  background: color-mix(in srgb, var(--danger) 14%, var(--pane));
-  color: var(--danger);
+  background: color-mix(in srgb, var(--neg) 14%, var(--pane));
+  color: var(--neg);
 }
 main.dash .days .tag.under {
-  background: color-mix(in srgb, var(--money) 14%, var(--pane));
-  color: var(--money);
+  background: color-mix(in srgb, var(--pos) 14%, var(--pane));
+  color: var(--pos);
 }
 main.dash .days .pane .meta {
   margin-top: var(--s1);
@@ -441,9 +411,6 @@ main.dash .days .lst .v {
   font-size: var(--step--1);
   font-variant-numeric: tabular-nums;
 }
-main.dash .days .lst .credit .v {
-  color: var(--money);
-}
 main.dash .days .lst .empty,
 main.dash .days .pane .empty {
   display: block;
@@ -463,9 +430,6 @@ main.dash .days .pane .empty {
   main.dash .days .c {
     height: 3rem;
     padding: 4px;
-  }
-  main.dash .days .marks .brand {
-    --bs: 0.8125rem;
   }
   main.dash .days .dd {
     height: 24rem;

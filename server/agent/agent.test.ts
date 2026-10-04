@@ -45,6 +45,13 @@ test("split: blank lines, at most 3 bubbles", () => {
   expect(split("pick one\n1) VOO\n2) cash")).toEqual(["pick one\n1) VOO\n2) cash"]);
   expect(split("$5 * 3 = $15")).toEqual(["$5 * 3 = $15"]);
   expect(split("  ")).toEqual([]);
+  // Over 160 chars: cut at the last sentence end that fits, into the next bubble, never past 3.
+  const long = "you've got $311 today and nothing big is due until Friday, so you're fine. the iPhone is 59% there 😭 and the Tokyo trip is next in line after it. keep the DoorDash in check this week and you'll stay ahead.";
+  const got = split(long);
+  expect(got).toEqual(["you've got $311 today and nothing big is due until Friday, so you're fine. the iPhone is 59% there 😭 and the Tokyo trip is next in line after it.", "keep the DoorDash in check this week and you'll stay ahead."]);
+  expect(got.every((b) => b.length <= 160)).toBe(true);
+  expect(split(`a\n\nb\n\n${long}`)).toHaveLength(3); // no room: the third stays long
+  expect(split("x".repeat(200))).toEqual(["x".repeat(200)]); // no sentence end: left alone
 });
 
 test("with creds: the model's words, the tools' numbers, and a blackjack card", async () => {

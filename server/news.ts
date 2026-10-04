@@ -4,7 +4,7 @@
 // carry their source; they are written so no number in them goes stale with a price change.
 import { state } from "./state.ts";
 import { now } from "./clock.ts";
-import { say, word, usd } from "./voice.ts";
+import { say, word, usd, linkTitles } from "./voice.ts";
 import * as money from "./money.ts";
 
 export type Fact = { text: string; source?: string; url?: string };
@@ -105,6 +105,7 @@ export async function exaSearch(query: string): Promise<Hit[]> {
     .map((r) => ({ title: r.title!.trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/, ""), url: r.url!, // drop " | Site"
       snippet: r.highlights?.[0]?.trim(), published: r.publishedDate?.slice(0, 10) }));
   cache.set(query, { at: Date.now(), hits });
+  for (const h of hits) linkTitles.set(h.url, h.title);
   return hits;
 }
 

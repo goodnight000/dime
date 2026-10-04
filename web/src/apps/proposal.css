@@ -84,7 +84,7 @@
   font-style: normal;
   font-size: var(--step--2);
   font-weight: 500;
-  color: var(--danger);
+  color: var(--neg); /* the bill's increase: money out */
 }
 .pr-fig [hidden] {
   display: none;
@@ -167,7 +167,7 @@
   color: var(--muted);
 }
 .pr-out .money {
-  color: var(--money);
+  color: var(--pos); /* the saving */
 }
 .pr-out .danger {
   color: var(--danger);

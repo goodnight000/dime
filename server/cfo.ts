@@ -145,10 +145,11 @@ export const detect = (): Proposal[] => [...billHikes(), ...unusedSubs(), ...idl
 
 const proposals = () => Object.values(state.apps).filter((a) => a.kind === "proposal");
 
-/** Opens a card per find not already on the table (answered cards count; failed ones don't). */
-export function findSavings() {
+/** Opens a card per find not already on the table (answered cards count; failed ones don't).
+ *  `cancel`: only what can be cancelled or called down (bills, subscriptions), no idle cash. */
+export function findSavings(only: "all" | "cancel" = "all") {
   const taken = new Set(proposals().filter((a) => a.state.status !== "failed").map((a) => a.state.key ?? a.state.find));
-  const all = detect();
+  const all = detect().filter((p) => only === "all" || p.find === "bill" || p.find === "unused");
   const fresh = all.filter((p) => !taken.has(p.key));
   return { fresh, apps: fresh.map((p) => open("proposal", p)), already: all.filter((p) => taken.has(p.key)), trends: trends() };
 }

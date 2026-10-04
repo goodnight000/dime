@@ -36,13 +36,15 @@ function cfoActions(s: State) {
   const shown = new Map(s.messages.filter((m) => m.app).map((m) => [m.app!, m.created_at]));
   return Object.values(s.apps)
     .filter((a) => a.kind === "proposal" && a.state.status === "done" && shown.has(a.id))
-    .map((a) => ({ at: shown.get(a.id)!, st: a.state as { find: string; merchant?: string; title: string; outcome: { text: string } | null; amount?: number } }));
+    .map((a) => ({ at: shown.get(a.id)!, st: a.state as { find: string; merchant?: string; title: string; outcome: { text: string } | null; amount?: number; was?: number } }));
 }
 
 /** Bills due after `at`: this month's from state.upcoming (and trials about to convert); later months
  *  repeat this month's recurring bills on the same day of month, less anything Dime cancelled. */
 function projected(s: State, at: Date, month: string): Bill[] {
   const cancelled = new Set(cfoActions(s).filter((c) => c.st.find === "unused" && c.st.merchant).map((c) => c.st.merchant!));
+  // A bill Dime negotiated back down bills at the old price from now on.
+  const lowered = new Map(cfoActions(s).filter((c) => c.st.find === "bill" && c.st.merchant).map((c) => [c.st.merchant!, c.st.was!]));
   const cur = ym(at);
   const thisMonth = [
     ...s.upcoming.map((u) => ({ merchant: u.merchant, amount: u.amount, at: u.at })),
@@ -64,7 +66,7 @@ function projected(s: State, at: Date, month: string): Bill[] {
     .filter((b) => !cancelled.has(b.merchant))
     .map((b) => {
       const d = new Date(b.at);
-      return { merchant: b.merchant, amount: b.amount, at: new Date(y, m - 1, Math.min(d.getDate(), last), 6).toISOString(), status: "due" as const };
+      return { merchant: b.merchant, amount: lowered.get(b.merchant) ?? b.amount, at: new Date(y, m - 1, Math.min(d.getDate(), last), 6).toISOString(), status: "due" as const };
     });
 }
 

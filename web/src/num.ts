@@ -31,6 +31,15 @@ export const usd = (n: number, cents = false) => (cents ? exact : whole).format(
 /** A delta with its sign: "+$12", "−$7", "$0". */
 export const signed = (n: number, cents = false) => (n > 0 ? "+" : "") + usd(n, cents);
 
+/** A ledger amount as colour, not a minus (DESIGN.md §1.4). `amount` is signed from the account's
+ *  side (in > 0, out < 0). Out: "$21" in .neg, read as "spent $21". In: "+$2,400" in .pos. An
+ *  own-account transfer (kind "transfer") isn't money gone: "$3,000" in the text colour, "moved". */
+export function flow(amount: number, kind?: string, cents = false) {
+  const text = usd(Math.abs(amount), cents);
+  if (kind === "transfer") return { text, cls: "", label: `moved ${text}` };
+  return amount > 0 ? { text: "+" + text, cls: "pos", label: `received ${text}` } : { text, cls: "neg", label: `spent ${text}` };
+}
+
 // Index 0 is an empty row: a column that isn't there yet (or any more) rolls from or to it.
 const STRIP = `<span class="strip"><span></span>${[..."0123456789"].map((d) => `<span>${d}</span>`).join("")}</span>`;
 const isDigit = (c: string) => c >= "0" && c <= "9";

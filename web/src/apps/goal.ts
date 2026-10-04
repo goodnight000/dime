@@ -25,7 +25,7 @@ type State = {
   from: Side;
   to: Side;
   delta: number;
-  note?: string; // the money line, worded by the server: "+$30 from Oct 4", "Full"
+  note?: string; // the money line, worded by the server: "+$30 from Oct 4"
   order?: { status: Status; outcome: string | null };
 };
 type Shown = Status | "failed" | "wait";
@@ -43,7 +43,8 @@ const ASK = `<div class="pr-answer slot gl-ask" aria-live="polite" tabindex="-1"
 type Local = { shown: Shown; pending: "order" | "decline" | null; ready: boolean };
 const seen = new WeakMap<HTMLElement, Local>();
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const arrives = (side: Side, s: State) => (side.pct >= 100 ? (s.store ? "Ready to order" : "Done") : `Saved by ${date(side.eta)}`);
+// One status per state: a full store goal says nothing here, its order row (Order it → Ordered) is the status.
+const arrives = (side: Side, s: State) => (side.pct >= 100 ? (s.store ? "" : "Done") : `Saved by ${date(side.eta)}`);
 
 const goal: Renderer = (el, app, act) => {
   const s = app.state as State;
@@ -73,10 +74,9 @@ const goal: Renderer = (el, app, act) => {
     q('[data-s="ordering"] .t').textContent = `Ordering from ${s.store ?? "the store"}`;
     wire(el, s, act);
   }
-  const done = s.to.pct >= 100;
-  // Dated by the server, so an old sweep never reads "tonight" on a later day; a full glass says "Full".
-  delta.textContent = s.note ?? (done ? "Full" : s.delta > 0 ? signed(s.delta) : "");
-  delta.classList.toggle("none", !done && s.delta <= 0);
+  // Dated by the server, so an old sweep never reads "tonight" on a later day.
+  delta.textContent = s.note ?? (s.delta > 0 ? signed(s.delta) : "");
+  delta.classList.toggle("none", s.delta <= 0);
 
   // A full card shows the price as saved; any surplus rides along to the next goal unannounced.
   const set = (side: Side) => {

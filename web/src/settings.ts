@@ -16,7 +16,6 @@ type Settings = {
   bills: number;
   invest: number;
   fund: Fund | null;
-  morning: string;
   hourly: number;
   blackjack: boolean;
   tips: boolean;
@@ -73,7 +72,6 @@ const settings: Screen = (main, _session, current) => {
           <h2 id="g-dime">Dime</h2>
           <ul class="rows">
             ${row("tone", "Tone", say("be nicer"), seg("tone", [["nice", "Nice"], ["savage", "Savage"]], "Tone"))}
-            ${row("morning", "Morning text", say("text me at 7:30"), `<label class="field time"><input type="time" data-k="morning" step="900" aria-label="Morning text time"></label>`)}
             ${row("blackjack", "Impulse blackjack", say("no more blackjack"), seg("blackjack", [["on", "On"], ["off", "Off"]], "Impulse blackjack"))}
             ${row("tips", "CFO tips", say("stop the tips"), seg("tips", [["on", "On"], ["off", "Off"]], "CFO tips"))}
           </ul>
@@ -167,44 +165,38 @@ const settings: Screen = (main, _session, current) => {
     income: (s) => String(s.income),
     invest: (s) => String(s.invest),
     hourly: (s) => String(s.hourly),
-    morning: (s) => s.morning,
   };
   for (const input of main.querySelectorAll<HTMLInputElement>("input[data-k]")) {
     const k = input.dataset.k!;
     input.addEventListener("focus", () => {
-      if (last) input.value = k === "morning" ? raw[k](last) : usd(Number(raw[k](last)));
-      if (input.type !== "time") input.select();
+      if (last) input.value = usd(Number(raw[k](last)));
+      input.select();
     });
     const commit = () => {
       if (!last) return;
       const v = input.value.trim();
       const n = Number(v.replace(/[$,\s]/g, "").replace(/k$/i, "e3"));
-      if (k === "morning" ? v === raw[k](last) : n === Number(raw[k](last))) return;
-      void save(k, { [k]: k === "morning" ? v : n } as Partial<Settings>);
+      if (n === Number(raw[k](last))) return;
+      void save(k, { [k]: n } as Partial<Settings>);
     };
-    if (input.type === "time") input.addEventListener("change", commit);
-    else {
-      input.addEventListener("blur", commit);
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") input.blur();
-        if (e.key === "Escape") {
-          if (last) input.value = usd(Number(raw[k](last)));
-          input.blur();
-        }
-      });
-    }
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") input.blur();
+      if (e.key === "Escape") {
+        if (last) input.value = usd(Number(raw[k](last)));
+        input.blur();
+      }
+    });
   }
 
   /** Lays every control out from `s`. Focused fields and rows mid-save keep what's being typed. */
   function draw(s: Settings, force = false) {
     last = s;
     const busy = (k: string) => !force && saving.has(k);
-    const focused = (k: string) => document.activeElement === main.querySelector(`input[data-k="${k}"]`);
     roll($('[data-n="income"]'), usd(s.income));
     roll($('[data-n="bills"]'), usd(s.bills));
     roll($('[data-n="invest"]'), usd(s.invest));
     roll($('[data-n="hourly"]'), usd(s.hourly));
-    if (!focused("morning")) $<HTMLInputElement>('input[data-k="morning"]').value = s.morning;
     if (!busy("tone")) pick("tone", s.tone);
     if (!busy("fund")) pick("fund", s.fund);
     if (!busy("blackjack")) pick("blackjack", s.blackjack ? "on" : "off");

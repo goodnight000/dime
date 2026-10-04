@@ -78,7 +78,11 @@ Radii: bubble 18px · pane 18px · rows container 14px (`--radius`) · inner sur
 
 - Every number: `font-variant-numeric: tabular-nums`. Verify in the polish pass that Instrument Sans honours `tnum` (compare widths of "111" and "000"); the roll component (§1.5) uses fixed `1ch` columns, so hero numbers stay steady either way.
 - Format with `Intl.NumberFormat("en-US")`. Today's number, goal amounts, pots, stakes: whole dollars (`$43`, `$1,099`). Ledger and fund values: cents (`$1,284.50`). Never mix within one view.
-- Negatives and debits use the real minus `−` (U+2212). Deltas carry a sign: `+$12` in `--money`, `−$7` in `--muted`. Red is only for over budget and the NO side, never for an ordinary purchase.
+- **Color as meaning.** Colour says which way money moved, so amounts don't need a minus or a word. Tokens: `--pos` (= `--money`: money in, gains, under budget) and `--neg` (a calm brick red, `#a5493f` light / `#d68a80` dark, AA on `--pane`: money out, losses, over budget). Utility classes `.pos` / `.neg`; `num.ts flow(amount, kind)` returns text, class and an accessible label for ledger rows.
+  - Transactions (Accounts Recent, calendar day detail): money out in `--neg` with no minus (`$21`, read as "spent $21"); money in (income, refunds, Venmo received, blackjack wins) in `--pos` with `+`; transfers between his own accounts (Transfer to Savings, card autopay, Robinhood) in `--fg` with no sign ("moved").
+  - Totals and scheduled amounts stay neutral: today's number (a balance; `--neg` only once over budget), month spend, Coming up / Due bills, the heat map's figures. Red marks something that was taken out, not every number about spending.
+  - Changes: investment month delta and fund returns `--pos` up / `--neg` down; calendar day tag "Under" `--pos`, "$X over" and the over dot `--neg`; proposal card bill increase `--neg`, saving `--pos`; market payouts winners `+$15` `--pos`, losers `$10` `--neg` (no minus, labelled "lost $10"); goal deltas `+$X` `--pos`.
+  - `--danger` stays for errors and alerts; the NO side keeps it.
 - Arrows in copy are `→` (U+2192): `$280 → S&P 500`.
 - **Hero money (step-2 and up):** `$` at 0.5em of the digits, same colour and weight, top-aligned to the digit cap height (`.cur` in §1.5), gap 0.04em. Body-size money: `$` at full size, no treatment.
 - Percent in heroes: `%` at 0.5em, same top alignment as `$`.
@@ -524,49 +528,46 @@ Yes $30                                    No $15  step−1 600 (.num); "Yes"/"N
 
 Purpose-built: a rail of today on the left, the money's work on the right. No bordered card per section; sections are separated by whitespace and one hairline at most. `main.dash { --col: 72rem }`.
 
+**Current layout (supersedes the diagram below where they differ).** One focal point: today's number. Rail: "Left today" + hero + "of $311 this morning", the goals stack (no priority numerals; order says it), Spending (top 5, name and amount on a line, a 4px bar under, one grey). Work column: the calendar (heat map only: no logos or glyphs in cells, legend "Less ▢▢▢▢▢ More" + "● Over budget", toggle **All / Everyday / Bills** = all / variable / fixed; the month panel is one headline for the chosen mode plus Coming up), then Invested on the same two columns: heading + a 6rem stepped line (no gridlines, no end label, start/end dates) left; total, month delta and fund rows ("VOO · +3.2% since bought", value right) right. Cut: Pool left / Days left / To goal (jargon, duplicated the ring), Recent (duplicated Accounts and the day panel), the allocation bar and fund swatches (duplicated the fund values), the heat-scale dollar text, the month panel's split and under/over lines.
+
 **1440 desktop:**
 
 ```
-October                                                              (page-head h1 step-2)
+Sunday, Oct 4                                                           (page-head h1 step-2)
 
-Today                │ Invested                                    $1,284.50
-$36                  │                                     +$23.40 this month (--money)
-of $43 this morning  │ ┌ line chart, 12rem ────────────────────────────────────┐
-                     │ │ ─────────────╮____________╭──────────────●  $1,284   │
-Pool left     $612   │ └───────────────────────────────────────────────────────┘
-Days left       28   │ Oct 1                    Oct 15                   Oct 31
-To goal       $142   │ ███████████▌███████▌████▌▐█  allocation bar 0.5rem
-                     │ ┌ rows ───────────────────────────────────────────────┐
-[ring]  iPhone 17 Pro│ │ ■ S&P 500  VOO                 $820.00   +2.1%       │
-        64%          │ │ ■ Nasdaq-100 QQQ               $280.00   +3.4%       │
-        $703 of $1,099│└─────────────────────────────────────────────────────┘
-        Nov 21       │
-                     │ Spending                          │ Days
-                     │ Dining      ██████████   $142     │ S M T W T F S
-                     │ Groceries   ██████       $96      │ ▣ ▣ ▣ ▢ ▣ …
-                     │ …                                 │ ■ under ■ over ■ no-spend
+Left today         │ October 2026   ‹ ›          [All|Everyday|Bills] │ Spent in October so far
+$311               │ S  M  T  W  T  F  S                              │ $1,794
+of $311 this morning│ heat-map month, one cell per day                 │ Coming up
+                   │ (tap a day: the right column crossfades to it)   │ [logo] Verizon  Oct 6   $45
+[ring] iPhone 17 Pro│                                                  │ [logo] Car ins. Oct 9  $112
+       59%         │ Less ▢▢▣▣■ More                  • Over budget   │ …
+       $650 of $1,099│─────────────────────────────────────────────────┼──────────────────────────
+       Saved by Oct 11│ Invested                                        │ $1,327.72
+[mini] Tokyo   Nov 15│ stepped line chart                              │ +$5.73 this month
+[mini] Emergency Jan 3│ Sep 4                                   Oct 4   │ S&P 500  VOO · +3.2%  $867
+                   │                                                  │ Nasdaq-100 …          $460
+Spending  Oct 1–4  │
+[icon] Groceries $64 │
+▬▬▬▬▬▬▬▬▬▬▬▬       │
 ```
 
-- Grid: `grid-template-columns: 20rem minmax(0, 1fr); column-gap: var(--s5)`; rail separated by a 1px `--rule` vertical line (`border-right` on the rail, `padding-right: var(--s5)`). Right column: invested block, then `grid-template-columns: minmax(0, 1fr) 17rem; gap: var(--s5)` for spending | days.
-- "Today" is the one label above the hero: step−1 500 `--muted`, sentence case.
-- **Rail:** hero `.num.hero` step-4 (`$36`), sub-line step−1 `--muted`. Then key–value rows (dividered, no container border; label step−1 `--muted`, value step-0 500 tabular right). Then the goals stack (§3.3): the top goal's ring at 5.5rem with name / % (step-2) / amounts / date beside it, the queued goals as mini-ring rows under it.
-- **Invested:** h2 "Invested" left, total `.num` step-2 right with the month delta under it. Line chart below, allocation bar, then fund rows inside one `.rows` container (radius 14): swatch 0.625rem square radius 3px in the fund colour, name step-0 500 + ticker step−2 `--muted`, value tabular, change % step−1 (`--money` if up, `--muted` if down, with sign).
-- **Spending:** h2 "Spending"; rows (no container), top 6 categories by amount: name step−1 (6.5rem col) | bar | amount step−1 tabular right. Bar 6px tall, radius 3px, length relative to the largest; largest in `--fg`, others `color-mix(in srgb, var(--fg) 45%, transparent)`.
-- **Days (calendar):** h2 "Days"; weekday initials step−2 `--muted`; 7 columns of 2.25rem cells, gap 4px, radius 8px, date step−2 tabular centred. Fills: under budget `color-mix(in srgb, var(--money) 20%, var(--pane))`; over `color-mix(in srgb, var(--danger) 18%, var(--pane))`; no-spend `color-mix(in srgb, var(--amber) 30%, var(--pane))`; future days no fill, date `--muted`; today a 1.5px `--fg` inset ring. Legend under the grid: three 0.625rem swatches, each with its word ("Under", "Over", "No spend"), step−2.
+- Grid: `grid-template-columns: 20rem minmax(0, 1fr)`; the rail is split from the work by a 1px `--rule` line. The work column is two bands, each `minmax(0, 1fr) 18rem`: the calendar | its side (month total and Coming up, or the open day), then the invested chart | total and fund rows.
+- **Rail:** "Left today" (step−1 500 `--muted`) over the hero `.num.hero` (step-4) and "of $X this morning" (or "$X over today" in the same slot). Then the goal stack (§3.3): the active goal's ring at 5.5rem with name / % (step-2) / amounts / "Saved by" date, the queued goals as mini-ring rows with their dates. Then Spending: top categories this month, a category icon, name, amount, and a bar under each (6px, radius 3px, length relative to the largest).
+- **Calendar** (`calendar.ts`, GET /api/calendar): a real month with ‹ › paging, and a segmented All / Everyday / Bills (all, variable, fixed) that recolours the heat map. Cells are radius 8px with the date top-left; spend is a 5-step `--money` ramp ("Less … More" legend), an over-budget day gets a small `--danger` dot, today a 1.5px `--fg` ring, future days stay empty. The side column shows the month total and the bills Coming up (brand logo, name, date, amount). Tapping a day swaps that column, in place, to the day: its one-line summary (under or over the day's number), the purchases with brand logos, bills, and events (payday, sweep, blackjack, CFO). The slot is sized to the calendar, so nothing reflows.
+- **Invested:** h2 "Invested" over the stepped line chart (Sep → today); to its right the total `.num` step-2 with the month delta under it, then fund rows (name step-0 500, ticker · change since bought step−2, value tabular). "$X waiting for a fund" shows under the h2 when a loss has no fund yet.
 
 **Chart rules (all charts):**
 - Line 1.75px `--fg`, round caps/joins, stepped after each ledger entry (it's a ledger, not a market price). No area fill, no gradient. End dot 6px `--fg` with the value as a direct label (step−2 500) to its left.
 - Three horizontal gridlines, 1px `--rule`. No axis lines, no y labels (the end label and the total carry the value). X labels step−2 `--muted`: month start, mid, end.
-- Allocation bar: 0.5rem tall, radius 3px, segments in fund colours separated by 2px of `--pane`. The fund rows are the legend.
 - Hover (fine pointer): 1px `--muted` vertical hairline + tooltip (`--pane`, 1px `--rule` border, radius 10px, pad s1 s2, step−2, `box-shadow: 0 6px 20px -10px color-mix(in srgb, var(--fg) 35%, transparent)`, z 10). Tooltip opacity 120ms; it follows the pointer without easing.
 - Draw-in: the line draws once per session on first view (`stroke-dashoffset` from path length to 0, `--t-data` `--ease-in-out`), after the screen's `rise` ends. Nothing else on the dashboard animates on load.
 - Dark mode: same tokens; gridlines stay `--rule` (it's already a mix of `--fg`).
 
-**Live updates:** poll `/api/summary` every 2s while mounted. Changed numbers roll; a new ledger entry extends the line (redraw the path, no animation); calendar cells change colour with `--quick`.
+**Live updates:** poll `/api/summary` (and the calendar) every 2s while mounted. Changed numbers roll; a new ledger entry extends the line (redraw the path, no animation); calendar cells change colour with `--quick`.
 
 **Empty / loading:** layout renders immediately with `—` in `--muted` for every figure (slots sized, nothing shifts when numbers arrive). No ledger yet: chart area shows the flat baseline and the rows container holds Forth's `.rows .empty` "Nothing invested yet. Lose a hand and it lands here." Spending empty: "No spending yet this month."
 
-**Phone (390):** one column, in this order: hero (step-3) + key–values, goal, Days, Invested, Spending. Section gap `--s5`. Chart height 9rem. The rail border disappears.
+**Phone (390):** one column, in this order: hero (step-3), goals, calendar, Invested, Spending. Section gap `--s5`. Chart height 9rem. The rail border disappears.
 
 ---
 

@@ -2,7 +2,7 @@ import "./accounts.css";
 import { api } from "./api.ts";
 import { icon } from "./icons.ts";
 import { brand } from "./brands.ts";
-import { usd } from "./num.ts";
+import { flow } from "./num.ts";
 import { T, reduced, later, swap } from "./motion.ts";
 import type { Screen } from "./main.ts";
 
@@ -12,7 +12,7 @@ import type { Screen } from "./main.ts";
 // transactions enter the rail. State is the server's (server/accounts.ts); polled every 2s.
 
 type Account = { id: string; name: string; kind: string; glyph: string; connected: boolean; subtitle: string };
-type Txn = { id: string; at: string; merchant: string; amount: number };
+type Txn = { id: string; at: string; merchant: string; amount: number; kind?: string };
 type Data = { accounts: Account[]; recent: Txn[] };
 
 const C = 2 * Math.PI * 18; // the ring's circumference (r = 18 in a 40-unit box)
@@ -174,8 +174,10 @@ const accounts: Screen = (main, _session, current) => {
         li.querySelector("b")!.textContent = t.merchant;
         li.querySelector("small")!.textContent = short.format(new Date(t.at));
         const v = li.querySelector<HTMLElement>(".v")!;
-        v.textContent = (t.amount > 0 ? "+" : "") + usd(t.amount, cents);
-        v.classList.toggle("credit", t.amount > 0);
+        const f = flow(t.amount, t.kind, cents);
+        v.textContent = f.text;
+        v.setAttribute("aria-label", f.label);
+        if (f.cls) v.classList.add(f.cls);
         if (animate && (reveal || !before.has(t.id))) {
           li.classList.add("in");
           li.style.animationDelay = `${reveal ? i * 40 : 0}ms`;

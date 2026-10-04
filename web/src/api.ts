@@ -29,6 +29,7 @@ export type ThreadMessage = {
   tapback?: Tapback | null;
   // Dime's own tapback on one of your messages: how it answers an "ok".
   reaction?: Tapback | null;
+  link?: { url: string; title: string }; // a news URL's headline, for the link preview
 };
 export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
 export type App = { id: string; kind: AppKind; version: number; state: any };

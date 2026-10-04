@@ -149,7 +149,9 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
       Type.Object({ days: Type.Optional(Type.Number()) }),
       ({ days = 7 }) => {
         const at = now();
-        const cancelled = new Set(Object.values(state.apps).filter((a) => a.kind === "proposal" && a.state.find === "unused" && a.state.status === "done").map((a) => a.state.merchant));
+        const done = Object.values(state.apps).filter((a) => a.kind === "proposal" && a.state.status === "done");
+        const cancelled = new Set(done.filter((a) => a.state.find === "unused").map((a) => a.state.merchant));
+        const lowered = new Map<string, number>(done.filter((a) => a.state.find === "bill").map((a) => [a.state.merchant, a.state.was])); // negotiated back down
         const subs = new Map(state.subscriptions.map((s) => [s.merchant, s]));
         const bills = [...billHistory(at)]
           .filter(([merchant, xs]) => !cancelled.has(merchant) && (+at - +new Date(xs.at(-1)!.at)) / DAY < 40) // still billing
@@ -157,7 +159,7 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
             const last = xs.at(-1)!;
             const up = state.upcoming.find((u) => u.merchant === merchant && new Date(u.at) > at);
             const next = up ? new Date(up.at) : addMonth(new Date(last.at));
-            return { merchant, amount: up?.amount ?? last.amount, previous_charge: xs.at(-2)?.amount ?? null, last_charged: date(new Date(last.at)),
+            return { merchant, amount: lowered.get(merchant) ?? up?.amount ?? last.amount, ...(lowered.has(merchant) ? { negotiated_down_from: last.amount } : {}), previous_charge: xs.at(-2)?.amount ?? null, last_charged: date(new Date(last.at)),
               next_due: date(next), next_ms: +next, subscription: subs.has(merchant), ...(subs.get(merchant)?.cadence === "yearly" ? { yearly: true } : {}) };
           });
         for (const u of state.upcoming) // first-time bills with no history yet
@@ -203,8 +205,10 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
           illustrative_return: `${f.ret.pct}% (${f.ret.period}), illustrative, not a real return` });
         return id ? info(fund(id)) : { funds: FUNDS.map(info), his_fund_for_losses: state.user.fund };
       }),
-    tool("find_savings", "Scan his bills, subscriptions and cash for money to save (bills that went up, subscriptions he doesn't use or trials about to charge, idle cash) and send an approve card for each new find. Also returns spending categories running hot vs last month.", none, () => {
-      const r = findSavings();
+    tool("find_savings", "Scan his bills, subscriptions and cash for money to save (bills that went up, subscriptions he doesn't use or trials about to charge, idle cash) and send an approve card for each new find. Also returns spending categories running hot vs last month.",
+      Type.Object({ only: Type.Optional(Type.Union([Type.Literal("all"), Type.Literal("cancel")], { description: "cancel = he asked what to cancel, or about bills/subscriptions: only bill and subscription finds. all (default) = how to save in general, includes idle cash." })) }),
+      ({ only = "all" }) => {
+      const r = findSavings(only);
       apps.push(...r.apps);
       const brief = (p: Proposal) => ({ find: p.title, merchant: p.merchant, amount: p.amount, ...(p.was ? { was: p.was } : {}) });
       return { new_cards_sent: r.fresh.map(brief), already_proposed_earlier: r.already.map(brief), spending_running_hot: r.trends };
@@ -339,12 +343,11 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
     ),
     tool(
       "update_settings",
-      "Change his settings when he asks (the same ones as the Settings page): monthly take-home pay, monthly invest habit (set aside before today's number), hourly pay (for hours-of-work math), the morning text time (24h HH:MM), where blackjack losses go (fund), impulse blackjack on/off, CFO tips on/off. Only the fields he changed. Tone and goal have their own tools.",
+      "Change his settings when he asks (the same ones as the Settings page): monthly take-home pay, monthly invest habit (set aside before today's number), hourly pay (for hours-of-work math), where blackjack losses go (fund), impulse blackjack on/off, CFO tips on/off. Only the fields he changed. Tone and goal have their own tools.",
       Type.Object({
         income: Type.Optional(Type.Number()),
         invest: Type.Optional(Type.Number()),
         hourly: Type.Optional(Type.Number()),
-        morning: Type.Optional(Type.String({ description: "24h HH:MM, e.g. 07:30" })),
         fund: Type.Optional(Type.Union(FUNDS.map((f) => Type.Literal(f.id)))),
         blackjack: Type.Optional(Type.Boolean()),
         tips: Type.Optional(Type.Boolean()),

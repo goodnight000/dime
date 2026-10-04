@@ -1,6 +1,6 @@
 import { test, expect, beforeEach } from "bun:test";
 import { state, reset } from "./state.ts";
-import { cfoScan } from "./cfo.ts";
+import { cfoScan, findSavings } from "./cfo.ts";
 import { run } from "./apps/index.ts";
 import { dropFact, getFact, topicOf } from "./news.ts";
 
@@ -22,6 +22,10 @@ test("scan proposes three finds, nothing moves before Approve, a rescan doesn't 
   await cfoScan();
   expect(cards().length).toBe(3);
 }, 15000);
+
+test("what to cancel: bill and subscription finds only, no idle cash", () => {
+  expect(findSavings("cancel").fresh.map((p) => p.key)).toEqual(["bill:Comcast", "unused:Hulu"]);
+});
 
 test("Not now answers in place; idle with a fund lands $2,000 in the ledger", async () => {
   state.user.fund = "VOO";

@@ -18,6 +18,7 @@ export type Message = {
   tapback?: Tapback | null;
   reaction?: Tapback | null; // Dime's tapback on Charles's message (an "ok" needs no words)
   reply_to?: { id: string; direction: "in" | "out"; body: string } | null;
+  link?: { url: string; title: string }; // a news URL in the body whose headline we know (news.ts)
 };
 export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
 export type App = { id: string; kind: AppKind; version: number; state: any }; // version++ on every change

@@ -20,10 +20,11 @@ const local = (ymd: string) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(y, m - 1, d);
 };
+// Saved and status as two spans: one line with a " · " on desktop, two lines on a phone (goals.css).
 const meta = (g: Goal) =>
-  `${usd(g.saved)} saved · ${
+  `<span>${usd(g.saved)} saved</span><span class="gr-st">${
     { active: `Saving now, by ${short.format(local(g.eta_date))}`, queued: `In line, by ${short.format(local(g.eta_date))}`, ready: "Ready to order", ordered: "Ordered", done: "Done" }[g.status]
-  }`;
+  }</span>`;
 
 /** A field's text as the row shows it: the price as money. */
 const shown = (g: Goal, f: "name" | "emoji" | "price") => (f === "price" ? usd(g.price) : g[f]);
@@ -86,7 +87,7 @@ mountGoals((section, alive) => {
       const li = list.querySelector<HTMLElement>(`[data-id="${g.id}"]`)!;
       level(li.querySelector(".ring")!, g.saved <= 0 ? 0 : g.pct / 100);
       li.classList.toggle("on", g.status === "active");
-      li.querySelector(".gr-meta")!.textContent = meta(g);
+      li.querySelector(".gr-meta")!.innerHTML = meta(g);
       for (const f of ["name", "emoji", "price"] as const) li.querySelector<HTMLInputElement>(`[data-f="${f}"]`)!.value = shown(g, f);
     });
   }

@@ -2,7 +2,7 @@
 // markers for bills and everything else that happened, and a day detail beside it. Data from
 // GET /api/calendar?month=YYYY-MM (server/calendar.ts). The detail lives in a swap slot sized to the
 // calendar, so opening a day crossfades in place and nothing reflows.
-import { usd } from "./num.ts";
+import { usd, flow } from "./num.ts";
 import { brand } from "./brands.ts";
 import { icon } from "./icons.ts";
 import { swap } from "./motion.ts";
@@ -33,7 +33,9 @@ const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" 
 const long = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
 const clock = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
 const money = (n: number) => usd(n, !Number.isInteger(Math.round(n * 100) / 100));
-const MODE_WORD: Record<Mode, string> = { all: "spent", variable: "variable", fixed: "fixed" };
+// The toggle's words: "variable" and "fixed" are the data's terms; people say everyday and bills.
+const MODE_WORD: Record<Mode, string> = { all: "spent", variable: "spent day to day", fixed: "in bills" };
+const MODE_HEAD: Record<Mode, string> = { all: "Spent", variable: "Everyday spending", fixed: "Bills" };
 
 /** Event glyphs: Charade icons on the neutral tile, the same footprint as a brand tile. */
 const GLYPH: Record<string, string> = {
@@ -41,16 +43,6 @@ const GLYPH: Record<string, string> = {
   refund: "undo", duplicate: "copy", invest: "trending-up", goal: "gem",
 };
 const glyph = (e: Ev) => (e.kind === "payday" ? brand(e.merchant ?? "Payroll") : `<span class="brand plain" aria-hidden="true">${icon(GLYPH[e.kind] ?? "star")}</span>`);
-/** What a cell shows, most telling first. Sweeps happen most nights, so they stay in the detail. */
-function marks(d: Day): string[] {
-  const loud = d.events.filter((e) => !["sweep", "payday", "invest"].includes(e.kind));
-  return [
-    ...loud.filter((e) => e.kind === "cfo" || e.kind === "duplicate").map(glyph),
-    ...d.bills.map((b) => brand(b.merchant)),
-    ...d.events.filter((e) => e.kind === "payday").map(glyph),
-    ...loud.filter((e) => e.kind !== "cfo" && e.kind !== "duplicate").map(glyph),
-  ];
-}
 const level = (v: number, cuts: number[]) => (v <= 0 ? 0 : 1 + cuts.filter((c) => v > c).length);
 
 export function mountCalendar(sec: HTMLElement) {
@@ -64,8 +56,8 @@ export function mountCalendar(sec: HTMLElement) {
       <div class="seg" role="radiogroup" aria-label="Spend shown" style="--n:3;--i:0">
         <i class="thumb" aria-hidden="true"></i>
         <button role="radio" aria-checked="true" data-mode="all">All</button>
-        <button role="radio" aria-checked="false" data-mode="variable">Variable</button>
-        <button role="radio" aria-checked="false" data-mode="fixed">Fixed</button>
+        <button role="radio" aria-checked="false" data-mode="variable">Everyday</button>
+        <button role="radio" aria-checked="false" data-mode="fixed">Bills</button>
       </div>
     </header>
     <div class="cal-body">
@@ -74,8 +66,7 @@ export function mountCalendar(sec: HTMLElement) {
         <div class="cal" aria-labelledby="days-h">${"<button class='c blank' tabindex='-1' disabled></button>".repeat(42)}</div>
         <div class="legend">
           <span class="ramp"><span>Less</span>${[0, 1, 2, 3, 4, 5].map((l) => `<i class="lv${l}"></i>`).join("")}<span>More</span></span>
-          <span class="scale"></span>
-          <span class="key-over"><i class="od"></i>Over the day's number</span>
+          <span class="key-over"><i class="od"></i>Over budget</span>
         </div>
       </div>
       <div class="dd slot" aria-live="polite">
@@ -138,8 +129,8 @@ export function mountCalendar(sec: HTMLElement) {
       cell.dataset.date = d.date;
       cell.tabIndex = d.date === focusDate ? 0 : -1;
       cell.className = `c lv${lv}${d.future ? " future" : ""}${d.today ? " now" : ""}${d.date === open ? " sel" : ""}`;
-      const m = marks(d);
-      cell.innerHTML = `<span class="dn">${d.day}</span>${over ? '<i class="od"></i>' : ""}<span class="marks">${m.slice(0, 2).join("")}${m.length > 2 ? `<small>+${m.length - 2}</small>` : ""}</span>`;
+      // The heat is the story: no logos in the grid. Bills and events live in the day panel.
+      cell.innerHTML = `<span class="dn">${d.day}</span>${over ? '<i class="od"></i>' : ""}`;
       const bits = [long.format(local(d.date)) + (d.today ? ", today" : "")];
       if (!d.future) bits.push(v > 0 ? `${money(v)} ${MODE_WORD[mode]}` : `nothing ${mode === "all" ? "spent" : MODE_WORD[mode]}`);
       if (over) bits.push(`${usd(d.over)} over`);
@@ -149,7 +140,6 @@ export function mountCalendar(sec: HTMLElement) {
       cell.setAttribute("aria-label", bits.join(". "));
       cell.setAttribute("aria-pressed", String(d.date === open));
     });
-    $(".scale").textContent = `${usd(cuts[0])} to ${usd(cuts[3])}+ a day`;
     $(".key-over").classList.toggle("off", mode === "fixed");
     drawMonth(c);
     if (open) drawDay(c.days.find((d) => d.date === open)!, false);
@@ -167,10 +157,8 @@ export function mountCalendar(sec: HTMLElement) {
         <p class="big">${usd(dueSum)}</p>
         <p class="meta">${t.due.length} bill${t.due.length === 1 ? "" : "s"} scheduled, all fixed</p>
         <h3>First up</h3><ul class="lst">${rows}</ul>`
-      : `<p class="ey">${esc(c.label.split(" ")[0])}${cur ? " so far" : ""}</p>
-        <p class="big">${usd(t.all)}</p>
-        <p class="meta">${usd(t.variable)} variable · ${usd(t.fixed)} fixed</p>
-        <p class="meta">${t.under_days} day${t.under_days === 1 ? "" : "s"} under, ${t.over_days} over${cur && t.due.length ? ` · ${usd(dueSum)} still due` : ""}</p>
+      : `<p class="ey">${MODE_HEAD[mode]} in ${esc(c.label.split(" ")[0])}${cur ? " so far" : ""}</p>
+        <p class="big">${usd(t[mode])}</p>
         ${cur && due.length ? `<h3>Coming up</h3><ul class="lst">${rows}</ul>` : biggest(c)}`;
   }
 
@@ -179,7 +167,7 @@ export function mountCalendar(sec: HTMLElement) {
     const top = c.days.filter((d) => !d.future && d.spend[mode] > 0).sort((a, b) => b.spend[mode] - a.spend[mode]).slice(0, 5);
     if (!top.length) return `<h3>Biggest days</h3><p class="empty">Nothing ${MODE_WORD[mode]} this month.</p>`;
     const lead = (d: Day) => d.txns.filter((t) => (mode === "all" ? t.cost : t.cost === mode)).sort((a, b) => b.amount - a.amount)[0];
-    return `<h3>Biggest days${mode === "all" ? "" : `, ${mode}`}</h3><ul class="lst">${top
+    return `<h3>Biggest days${mode === "all" ? "" : `, ${mode === "fixed" ? "bills" : "everyday"}`}</h3><ul class="lst">${top
       .map((d) => {
         const t = lead(d);
         return `<li><button class="go" data-go="${d.date}">${t ? brand(t.merchant) : "<span></span>"}<span class="tt"><b>${long.format(local(d.date))}</b><small>${t ? `Mostly ${esc(t.merchant)}` : ""}</small></span><span class="v">${money(d.spend[mode])}</span></button></li>`;
@@ -205,8 +193,11 @@ export function mountCalendar(sec: HTMLElement) {
     const txns = d.txns;
     const row = (tile: string, name: string, meta: string, amount: string, cls = "") =>
       `<li${cls ? ` class="${cls}"` : ""}>${tile}<span class="tt"><b>${esc(name)}</b><small>${meta}</small></span><span class="v">${amount}</span></li>`;
-    const sign = (t: Tx) => (t.kind === "income" || t.kind === "refund" ? "+" : "−") + money(t.amount);
-    const costWord = (t: Tx) => (t.covered ? "Won at blackjack" : t.cost === "fixed" ? "Fixed" : t.cost === "variable" ? "Variable" : t.kind === "income" ? "Income" : "Transfer");
+    // Colour carries the direction (num.ts flow): out in --neg without a minus, in in --pos with "+".
+    const amt = (f: { text: string; cls: string; label: string }) => `<span class="${f.cls}" aria-label="${f.label}">${f.text}</span>`;
+    const tx = (t: Tx) => amt(flow(t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount, t.kind, !Number.isInteger(t.amount)));
+    const IN = ["payday", "refund", "blackjack-win"]; // money arriving; sweeps and investing move it between his own pots
+    const ev = (e: Ev) => (e.amount === null ? "" : IN.includes(e.kind) ? amt(flow(Math.abs(e.amount))) : money(Math.abs(e.amount)));
     const bills = d.bills.filter((b) => b.status === "due");
     const events = d.events;
     target.innerHTML = `
@@ -221,13 +212,13 @@ export function mountCalendar(sec: HTMLElement) {
       <p class="meta">${
         d.future
           ? bills.length ? "scheduled" : "nothing scheduled"
-          : `${usd(d.spend.variable)} variable · ${usd(d.spend.fixed)} fixed`
+          : `${usd(d.spend.variable)} everyday · ${usd(d.spend.fixed)} bills`
       }</p>
       <p class="line">${icon("cue", "cue")}<span>${esc(d.line)}</span></p>
       <div class="scroll">
-        ${txns.length ? `<h3>Transactions</h3><ul class="lst">${txns.map((t) => row(brand(t.merchant), t.merchant, `${clock.format(new Date(t.at))} · ${esc(t.category[0].toUpperCase() + t.category.slice(1))} · ${costWord(t)}`, sign(t), t.kind === "income" || t.kind === "refund" ? "credit" : "")).join("")}</ul>` : ""}
+        ${txns.length ? `<h3>Transactions</h3><ul class="lst">${txns.map((t) => row(brand(t.merchant), t.merchant, `${clock.format(new Date(t.at))} · ${esc(t.category[0].toUpperCase() + t.category.slice(1))}${t.covered ? " · Won at blackjack" : ""}`, tx(t))).join("")}</ul>` : ""}
         ${bills.length ? `<h3>Due</h3><ul class="lst">${bills.map((b) => row(brand(b.merchant), b.merchant, "Scheduled · Fixed", money(b.amount))).join("")}</ul>` : ""}
-        ${events.length ? `<h3>Also</h3><ul class="lst">${events.map((e) => row(glyph(e), e.label, clock.format(new Date(e.at)), e.amount === null ? "" : money(Math.abs(e.amount)))).join("")}</ul>` : ""}
+        ${events.length ? `<h3>Also</h3><ul class="lst">${events.map((e) => row(glyph(e), e.label, clock.format(new Date(e.at)), ev(e))).join("")}</ul>` : ""}
         ${!txns.length && !bills.length && !events.length ? `<p class="empty">${d.future ? "Nothing on this day yet." : d.today ? "Nothing yet today." : "Nothing happened this day."}</p>` : ""}
         ${d.today && data?.totals.due.length ? `<h3>Next up</h3><ul class="lst">${data.totals.due.slice(0, 3).map((b) => row(brand(b.merchant), b.merchant, short.format(new Date(b.at)), money(b.amount))).join("")}</ul>` : ""}
       </div>`;

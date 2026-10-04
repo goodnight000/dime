@@ -293,7 +293,10 @@
   color: var(--muted);
 }
 .mk-done li b.won {
-  color: var(--money);
+  color: var(--pos);
+}
+.mk-done li b.lost {
+  color: var(--neg);
 }
 .mk-fail {
   display: flex;

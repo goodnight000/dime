@@ -12,8 +12,13 @@ export const usd = (n: number) =>
   "$" + n.toLocaleString("en-US", { maximumFractionDigits: Number.isInteger(n) ? 0 : 2, minimumFractionDigits: Number.isInteger(n) ? 0 : 2 });
 export const day = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+/** Headlines by URL, filled by news.ts as results come in: a posted URL we know gets a link preview. */
+export const linkTitles = new Map<string, string>();
+
 export function post(m: Omit<Message, "id" | "created_at">): Message {
-  const msg: Message = { id: id(), created_at: now().toISOString(), ...m };
+  const url = m.body.match(/https?:\/\/[^\s<>"')\]]+/)?.[0];
+  const title = url && linkTitles.get(url);
+  const msg: Message = { id: id(), created_at: now().toISOString(), ...m, ...(title ? { link: { url, title } } : {}) };
   state.messages.push(msg);
   return msg;
 }

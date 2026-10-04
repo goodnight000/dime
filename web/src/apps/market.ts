@@ -202,7 +202,7 @@ function outcome(el: HTMLElement, s: Market) {
     // You first, then the biggest results; everyone shows (two to a row), so the rows add up.
     const rows = [...(s.payouts ?? [])].sort((a, b) => Number(b.who === "Charles") - Number(a.who === "Charles") || Math.abs(b.net) - Math.abs(a.net)).slice(0, 4);
     done.querySelector("ol")!.innerHTML = rows
-      .map((r) => `<li>${face(r.who)}<span class="mk-name"></span><b class="${r.net > 0 ? "won" : ""}">${signed(r.net)}</b></li>`)
+      .map((r) => `<li>${face(r.who)}<span class="mk-name"></span>${r.net < 0 ? `<b class="lost" aria-label="lost ${usd(-r.net)}">${usd(-r.net)}</b>` : `<b class="${r.net > 0 ? "won" : ""}">${signed(r.net)}</b>`}</li>`)
       .join("");
     done.querySelectorAll("ol .mk-name").forEach((n, i) => (n.textContent = rows[i].who === "Charles" ? "You" : rows[i].who));
     return swap(bottom, done);

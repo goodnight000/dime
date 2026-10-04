@@ -1,5 +1,6 @@
-/* Dashboard (DESIGN.md §5): a rail of today on the left, the money's work on the right. No card
-   per section; whitespace and one hairline. Everything scoped to main.dash. */
+/* Dashboard (DESIGN.md §5): today's number is the one focal point. The rail answers "how am I
+   doing / how close are my goals / where is it going"; the work column "what happened this month /
+   what is my money doing". No card per section; whitespace and one hairline. Scoped to main.dash. */
 main.dash {
   --col: 72rem;
 }
@@ -72,27 +73,6 @@ main.dash .sub .overline {
 main.dash .sub .num {
   vertical-align: baseline;
 }
-main.dash .kv {
-  margin: var(--s4) 0 0;
-}
-main.dash .kv > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
-  padding: var(--s2) 0;
-  border-top: 1px solid var(--rule);
-}
-main.dash .kv dt {
-  font-size: var(--step--1);
-  color: var(--muted);
-}
-main.dash .kv dd {
-  margin: 0;
-  font-size: var(--step-0);
-  font-weight: 500;
-}
-
 /* Goals: the stack. The goal on top as a 5.5rem ring with its numbers beside it; the queue under it
    as dividered rows (the key-values' grammar): priority number, mini ring, name over amounts, date. */
 main.dash .goal {
@@ -144,7 +124,7 @@ main.dash .gq:empty {
 }
 main.dash .gq li {
   display: grid;
-  grid-template-columns: 0.75rem 2rem minmax(0, 1fr) auto;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s2);
   min-height: 3rem;
@@ -155,11 +135,6 @@ main.dash .gq .ring {
 }
 main.dash .gq .emo {
   font-size: calc(var(--rs) * 0.42);
-}
-main.dash .gn {
-  font-size: var(--step--2);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 main.dash .gqt {
   display: grid;
@@ -190,13 +165,6 @@ main.dash .work {
   gap: var(--s5);
   min-width: 0;
 }
-main.dash .invested > header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--s3);
-  margin-bottom: var(--s3);
-}
 main.dash .ih {
   display: grid;
   gap: var(--s1);
@@ -215,8 +183,8 @@ main.dash .waiting .num {
 }
 main.dash .tot {
   display: grid;
-  justify-items: end;
   gap: var(--s1);
+  padding: 0 0 var(--s2) var(--s4);
 }
 main.dash .tot .hero {
   font-size: var(--step-2);
@@ -227,16 +195,31 @@ main.dash .delta {
   font-size: var(--step--1);
   color: var(--muted);
 }
-main.dash .delta.up {
-  color: var(--money);
-}
 main.dash .delta .num {
   vertical-align: baseline;
 }
 
+/* Chart beside the fund rows, on the calendar's columns, so the two blocks share one grid. */
+main.dash .ib-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: var(--s4);
+  align-items: stretch;
+}
+main.dash .plot {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--s2);
+}
+main.dash .plot .ih {
+  margin-bottom: var(--s2);
+}
+main.dash .iside {
+  border-left: 1px solid var(--rule);
+}
 main.dash .chart {
   position: relative;
-  height: 12rem;
+  min-height: 6rem;
   touch-action: pan-y;
 }
 main.dash .chart svg {
@@ -245,10 +228,6 @@ main.dash .chart svg {
   width: 100%;
   height: 100%;
   overflow: visible;
-}
-main.dash .chart .grid line {
-  stroke: var(--rule);
-  stroke-width: 1;
 }
 main.dash .chart .line {
   stroke: var(--fg);
@@ -266,23 +245,10 @@ main.dash .end-dot {
   border-radius: 50%;
   background: var(--fg);
 }
-/* The value sits up and to the left of the dot, clear of the line arriving from the left. */
-main.dash .chart .end-label {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: auto;
-  bottom: auto;
-  margin: 0;
-  font-size: var(--step--2);
-  font-weight: 500;
-  transform: translate(calc(-100% - 0.5rem), calc(-100% - 0.25rem));
-  transition: opacity var(--quick);
-}
 main.dash .end-dot {
   transition: opacity var(--quick);
 }
-main.dash .chart.drawing :is(.end-dot, .end-label) {
+main.dash .chart.drawing .end-dot {
   opacity: 0;
   transition: none;
 }
@@ -332,69 +298,55 @@ main.dash .chart.hovering :is(.hair, .tip, .hover-dot) {
 main.dash .xl {
   display: flex;
   justify-content: space-between;
-  margin-top: var(--s2);
   font-size: var(--step--2);
   color: var(--muted);
 }
-main.dash .alloc {
+main.dash .funds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+main.dash .funds > li {
   display: flex;
-  gap: 2px;
-  height: 0.5rem;
-  margin-top: var(--s4);
-  border-radius: 3px;
-  overflow: hidden;
-}
-main.dash .alloc i {
-  flex: 1 1 0;
-  min-width: 2px;
-}
-main.dash .rows.funds {
-  margin-top: var(--s3);
-}
-main.dash .row.fund {
-  grid-template-columns: 0.625rem minmax(0, 1fr) auto 4.5rem;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--s3);
-  min-height: 3.25rem;
-  padding: 0.6rem var(--s3);
+  min-height: 3rem;
+  padding-left: var(--s4);
 }
-main.dash .fund .sw {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 3px;
+main.dash .funds > li {
+  border-top: 1px solid var(--rule);
 }
-main.dash .fund .nm {
+main.dash .funds .nm {
+  display: grid;
   min-width: 0;
+  line-height: 1.35;
+}
+main.dash .funds .nm b {
+  font-size: var(--step--1);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-main.dash .fund .nm b {
-  font-weight: 500;
-}
-main.dash .fund .nm small {
+main.dash .funds .nm small {
   font-size: var(--step--2);
   color: var(--muted);
-  margin-left: var(--s1);
+  font-variant-numeric: tabular-nums;
 }
-main.dash .fund .chg {
-  justify-self: end;
+main.dash .funds .num {
+  vertical-align: baseline;
+}
+main.dash .funds .val {
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+main.dash .funds .empty {
   font-size: var(--step--1);
   color: var(--muted);
 }
-main.dash .fund .chg.up {
-  color: var(--money);
-}
-main.dash .rows .empty {
-  padding: var(--s4) var(--s3);
-}
 
-/* ---- Spending | Days ---- */
-main.dash .pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr); /* the calendar moved to the top of the work column */
-  gap: var(--s5);
-}
-main.dash .bars {
+/* ---- Spending (rail): name and amount on one line, the bar under them ---- */main.dash .bars {
   list-style: none;
   margin: var(--s3) 0 0;
   padding: 0;
@@ -403,11 +355,14 @@ main.dash .bars {
 }
 main.dash .bars li {
   display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 6ch;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s3);
-  min-height: 1.75rem;
+  gap: var(--s1) var(--s3);
   font-size: var(--step--1);
+}
+main.dash .bars .bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 main.dash .bars li.empty {
   display: block;
@@ -434,38 +389,24 @@ main.dash .bars .amt {
   justify-self: end;
 }
 main.dash .bar {
-  height: 6px;
+  height: 4px;
 }
 /* Full-width bar clipped to its share (the split bar's technique): no width animation. */
 main.dash .bar i {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--fg) 45%, transparent);
-  clip-path: inset(0 calc((1 - var(--r, 0)) * 100%) 0 0 round 3px);
+  clip-path: inset(0 calc((1 - var(--r, 0)) * 100%) 0 0 round 2px);
   transition:
     clip-path var(--t-slow) var(--ease-in-out),
     background-color var(--quick);
-}
-main.dash .bars li.top .bar i {
-  background: var(--fg);
 }
 
 /* A 900px-tall screen: the invested block stays compact under the calendar. */
 @media (min-width: 760px) and (max-height: 920px) {
   main.dash .work {
     gap: var(--s4);
-  }
-  /* Room for a third and fourth fund row before the legend reaches the fold. */
-  main.dash .chart {
-    height: 10rem;
-  }
-  main.dash .alloc {
-    margin-top: var(--s3);
-  }
-  main.dash .row.fund {
-    min-height: 2.75rem;
-    padding-block: var(--s1);
   }
 }
 /* Poll failing: figures stay, quietly dimmed until the next good poll. */
@@ -484,8 +425,7 @@ main.dash .board.stale .rail {
     gap: var(--s5);
   }
   main.dash .rail,
-  main.dash .work,
-  main.dash .pair {
+  main.dash .work {
     display: contents;
   }
   main.dash .today {
@@ -508,74 +448,38 @@ main.dash .board.stale .rail {
     letter-spacing: -0.04em;
   }
   main.dash .chart {
-    height: 9rem;
+    height: 6rem;
   }
-  main.dash .fund .nm small {
-    display: none;
+  main.dash .ib-body {
+    grid-template-columns: minmax(0, 1fr);
   }
-}
-
-/* Recent, under the goal in the rail: four dividered rows, no container (the rail's key-values'
-   grammar). The list reserves its four rows, so a new swipe never moves the rail. */
-main.dash .recent h2 {
-  font-size: var(--step-0);
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 0 0 var(--s2);
-}
-main.dash .txs {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  min-height: calc(4 * 2.75rem);
-}
-main.dash .txs > li {
-  display: grid;
-  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-  min-height: 2.75rem;
-  border-top: 1px solid var(--rule);
-}
-main.dash .txs .tt {
-  display: grid;
-  min-width: 0;
-  line-height: 1.35;
-}
-main.dash .txs .tt b {
-  font-size: var(--step--1);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-main.dash .txs .tt small {
-  font-size: var(--step--2);
-  color: var(--muted);
-}
-main.dash .txs .v {
-  font-size: var(--step--1);
-  font-variant-numeric: tabular-nums;
-}
-main.dash .txs .v.credit {
-  color: var(--money);
-}
-main.dash .txs > li.empty {
-  display: block;
-  padding-top: var(--s2);
-  font-size: var(--step--1);
-  color: var(--muted);
-}
-main.dash .txs > li.in {
-  animation: tx-in var(--t-move) var(--ease-out);
-}
-@keyframes tx-in {
-  from {
-    opacity: 0;
+  /* Phone: heading, total, chart, funds: one column in reading order. */
+  main.dash .ib-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
   }
-}
-@media (max-width: 759px) {
-  main.dash .recent {
-    order: 6;
+  main.dash :is(.plot, .iside) {
+    display: contents;
+  }
+  main.dash .plot .ih {
+    order: 1;
+    margin: 0;
+  }
+  main.dash .tot {
+    order: 2;
+  }
+  main.dash .chart {
+    order: 3;
+  }
+  main.dash .xl {
+    order: 4;
+  }
+  main.dash .funds {
+    order: 5;
+    margin-top: var(--s2);
+  }
+  main.dash :is(.funds > li, .tot) {
+    padding-left: 0;
   }
 }

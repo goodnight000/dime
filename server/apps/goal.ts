@@ -18,7 +18,8 @@ export type GoalState = {
   from: { saved: number; pct: number; eta: string };
   to: { saved: number; pct: number; eta: string };
   delta: number;
-  /** The small money line: "+$30 from Oct 4", "+$23 from Comcast", "Full", or "" (new goal). */
+  /** The small money line: "+$30 from Oct 4", "+$23 from Comcast", or "" (new goal). Money only:
+   *  the status (Saved by / Done / the order row) is said once, elsewhere on the card. */
   note: string;
   /** Only on a card that filled the goal: the in-card ask and its outcome. */
   order?: { status: "open" | "ordering" | "ordered" | "declined"; outcome: string | null };
@@ -47,7 +48,7 @@ export function create(input: { id?: string; delta?: number; source?: string } =
     delta,
     note: "",
   };
-  s.note = s.to.pct >= 100 ? (g.store ? "Full" : "Done") : delta > 0 ? `+${usd(delta)} from ${input.source ?? "today"}` : input.source ? `Nothing left ${input.source}` : "";
+  s.note = delta > 0 ? `+${usd(delta)} from ${input.source ?? "today"}` : input.source ? `Nothing left ${input.source}` : "";
   if (g.store && !g.done && g.saved >= g.price) s.order = { status: "open", outcome: null };
   return { id: id(), kind: "goal", version: 1, state: s };
 }

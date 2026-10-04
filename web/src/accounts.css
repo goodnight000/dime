@@ -162,9 +162,6 @@ main.accounts .tx .t small {
 main.accounts .tx .v {
   font-size: var(--step--1);
 }
-main.accounts .tx .v.credit {
-  color: var(--money);
-}
 main.accounts .txns > .empty {
   align-self: stretch;
   display: grid;

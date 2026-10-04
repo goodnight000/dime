@@ -109,6 +109,10 @@ main.settings .gr-meta {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+main.settings .gr-st::before {
+  content: "·";
+  margin: 0 0.4em;
+}
 main.settings .gr.on .gr-meta {
   color: var(--fg);
 }
@@ -162,15 +166,30 @@ main.settings .g-note.err {
 }
 @media (max-width: 759px) {
   main.settings .goal-list .gr {
-    grid-template-columns: 1.75rem 2.5rem minmax(0, 1fr) 5.5rem 2rem;
+    grid-template-columns: 1.75rem 2.5rem minmax(0, 1fr) 4.25rem 2rem;
     gap: var(--s1);
     padding-left: 0.25rem;
+    padding-right: 0.25rem;
   }
   main.settings .goal-list .ring {
     --rs: 2.5rem;
   }
   main.settings .gr-n {
     display: none;
+  }
+  /* A phone has no room for "saved · status" on one line: stack them instead of clipping. */
+  main.settings .gr-meta {
+    display: grid;
+    line-height: 1.3;
+  }
+  main.settings .gr-st {
+    white-space: normal;
+  }
+  main.settings .gr-price input {
+    padding: 0 0.25rem;
+  }
+  main.settings .gr-st::before {
+    content: none;
   }
   main.settings .goal-list .ib {
     width: 2rem;

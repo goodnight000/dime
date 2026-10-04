@@ -53,6 +53,16 @@ test("next month repeats recurring bills, minus a cancelled subscription", () =>
   expect(today.events.some((e) => e.kind === "cfo")).toBe(true);
 });
 
+test("a bill Dime called down bills at the lower price from next month on", () => {
+  const at = now();
+  const next = ym(new Date(at.getFullYear(), at.getMonth() + 1, 1));
+  const comcast = () => calendar(state, at, next).days.flatMap((d) => d.bills).find((b) => b.merchant === "Comcast")!.amount;
+  expect(comcast()).toBe(70);
+  state.apps.p = { id: "p", kind: "proposal", version: 1, state: { find: "bill", merchant: "Comcast", was: 47, amount: 23, status: "done", title: "", outcome: { text: "Back to $47/mo." } } };
+  state.messages.push({ id: "m", thread: "dime", direction: "out", body: "", app: "p", created_at: at.toISOString() });
+  expect(comcast()).toBe(47);
+});
+
 test("today's events: double charge, refund, blackjack win and loss, group bet", () => {
   const at = now();
   const iso = (minAgo: number) => new Date(at.getTime() - minAgo * 60_000).toISOString();
@@ -66,7 +76,7 @@ test("today's events: double charge, refund, blackjack win and loss, group bet",
   state.bonus.push({ at: iso(2), amount: 12 });
   const today = calendar(state, at).days.find((d) => d.today)!;
   const kinds = today.events.map((e) => e.kind);
-  for (const k of ["duplicate", "refund", "blackjack-win", "blackjack-loss", "market"]) expect(kinds).toContain(k);
+  for (const k of ["duplicate", "refund", "blackjack-win", "blackjack-loss", "market"] as const) expect(kinds).toContain(k);
   expect(kinds.filter((k) => k === "duplicate")).toHaveLength(1);
   expect(today.spend.variable).toBeCloseTo(24.5 * 2 - 48, 2); // the covered win doesn't count; the refund nets
 });

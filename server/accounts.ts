@@ -41,7 +41,7 @@ export function accounts() {
         .filter((t) => new Date(t.at) <= at)
         .sort((a, b) => b.at.localeCompare(a.at))
         .slice(0, 5)
-        .map((t) => ({ id: t.id, at: t.at, merchant: t.merchant, amount: t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount }))
+        .map((t) => ({ id: t.id, at: t.at, merchant: t.merchant, kind: t.kind, amount: t.kind === "income" || t.kind === "refund" ? t.amount : -t.amount }))
     : [];
   return { accounts: list, recent };
 }

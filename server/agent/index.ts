@@ -95,10 +95,27 @@ const plain = (s: string) =>
     .replace(/^[ \t]*(?:#{1,6}[ \t]+|[-*•][ \t]+|>[ \t]?)/gm, "")
     .replace(/\s*—\s*/g, ", "); // em dashes, which the prompt bans and the model writes anyway
 
-/** Up to 3 bubbles from the reply text, split on blank lines; extras become lines of the last one. */
+const CAP = 160; // a texted bubble, not a paragraph
+/** A bubble over CAP cut at its last sentence end within CAP (an emoji after the stop stays with it), or null. */
+function cut(s: string): [string, string] | null {
+  if (s.length <= CAP) return null;
+  const end = [...s.slice(0, CAP + 1).matchAll(/[.!?…]+["”’)]*(?:[ \t]*\p{Extended_Pictographic}\uFE0F?)*\s+/gu)].at(-1);
+  if (!end || end.index! < 40) return null;
+  const i = end.index! + end[0].length;
+  return [s.slice(0, i).trim(), s.slice(i).trim()];
+}
+
+/** Up to 3 bubbles from the reply text, split on blank lines; extras become lines of the last one.
+ *  While there's room for another bubble, one over CAP splits at a sentence end into the next. */
 export function split(text: string): string[] {
   const parts = plain(text).split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
-  return parts.length > 3 ? [...parts.slice(0, 2), parts.slice(2).join("\n")] : parts;
+  const out = parts.length > 3 ? [...parts.slice(0, 2), parts.slice(2).join("\n")] : parts;
+  for (let i = 0; i < out.length && out.length < 3; ) {
+    const c = cut(out[i]);
+    if (c) out.splice(i, 1, ...c);
+    else i++;
+  }
+  return out;
 }
 
 /**

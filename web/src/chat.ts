@@ -89,18 +89,27 @@ const linkLabel = (url: string) => {
   }
 };
 
-/** Body text with bare URLs made into links; everything else stays text. */
-function linkify(body: string): (string | HTMLAnchorElement)[] {
+/** Body text with bare URLs made into links; everything else stays text. A URL on its own line
+ *  becomes a one-line link preview under the text: the headline (when the server knows it) and the
+ *  site, quiet. Inside a sentence it stays an inline link to the site. */
+function linkify(body: string, link?: { url: string; title: string }): (string | HTMLAnchorElement)[] {
   const out: (string | HTMLAnchorElement)[] = [];
   let at = 0;
   for (const m of body.matchAll(URL_RE)) {
-    out.push(body.slice(at, m.index));
+    const own = (m.index === 0 || body[m.index - 1] === "\n") && /^\s*$/.test(body.slice(m.index + m[0].length).split("\n")[0]);
+    out.push(body.slice(at, own ? Math.max(at, m.index - 1) : m.index)); // the line break goes; the preview is a block
     const a = document.createElement("a");
     a.href = m[0];
-    a.textContent = linkLabel(m[0]); // the site, as Messages shows a link; the full URL on hover
-    a.title = m[0];
+    a.title = m[0]; // the full URL on hover
     a.target = "_blank";
     a.rel = "noopener";
+    if (own) {
+      a.className = "lp";
+      const title = link?.url === m[0] ? link.title : "";
+      a.innerHTML = `${title ? `<span class="lp-t"></span>` : ""}<span class="lp-d"></span>`;
+      if (title) a.querySelector(".lp-t")!.textContent = title;
+      a.querySelector(".lp-d")!.textContent = linkLabel(m[0]);
+    } else a.textContent = linkLabel(m[0]); // the site, as Messages shows a link
     out.push(a);
     at = m.index + m[0].length;
   }
@@ -292,7 +301,7 @@ export default function chat(thread: Thread): Screen {
           // detaching a node restarts its animation.
           for (const c of [...li.childNodes])
             if (c.nodeType === Node.TEXT_NODE || (c as Element).tagName === "A") c.remove();
-          li.prepend(...linkify(m.body));
+          li.prepend(...linkify(m.body, m.link));
           li.classList.toggle("jumbo", JUMBO_RE.test(m.body.trim()));
           const had = li.querySelector<HTMLElement>(":scope > .tapback.mine:not(.gone)");
           const mine = TAPBACKS.find(([t]) => t === m.tapback);

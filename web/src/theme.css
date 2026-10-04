@@ -52,6 +52,10 @@
   /* Dime (DESIGN.md §1.1). money: positive amounts, goal liquid, YES, under budget. felt: the
      blackjack table. step-3/4: hero numbers only. Motion ladder mirrored in motion.ts (T). */
   --money: #1a6e44;
+  /* Color as meaning (DESIGN.md §1.4): money in / gain / under in --pos, money out / loss / over in
+     --neg, a calm brick red (not alarm red). Own-account transfers stay --fg. */
+  --pos: var(--money);
+  --neg: #a5493f;
   --felt: #22604a;
   --felt-deep: #194a39;
   --felt-fg: #eef2ec;
@@ -87,6 +91,7 @@
   --amber: #dcae66;
   --violet: #a08fd0;
   --money: #74c495;
+  --neg: #d68a80; /* desaturated in the dark */
   --felt: #24493b;
   --felt-deep: #1b382d;
   --felt-fg: #dfe5de;
@@ -111,6 +116,7 @@
     --amber: #dcae66;
     --violet: #a08fd0;
     --money: #74c495;
+    --neg: #d68a80; /* desaturated in the dark */
     --felt: #24493b;
     --felt-deep: #1b382d;
     --felt-fg: #dfe5de;
@@ -724,6 +730,38 @@ main.chat {
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+}
+/* A URL on its own line: a one-line preview under the text (headline, then the site), no image. */
+.b a.lp {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+  max-width: 100%;
+  margin-top: var(--s1);
+  font-size: var(--step--1);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.b a.lp:first-child {
+  margin-top: 0;
+}
+.lp-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.lp-d {
+  flex: none;
+  color: var(--muted);
+}
+.b.in .lp-d {
+  color: inherit;
+  opacity: 0.75;
+}
+.b a.lp:hover .lp-t {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .b .delivery {
   display: block;
@@ -1517,4 +1555,12 @@ main.demo .readout b {
     right: calc(50% - 0.95rem);
     margin: 0;
   }
+}
+
+/* Amount colours (DESIGN.md §1.4); num.ts flow() picks the class. */
+.pos {
+  color: var(--pos);
+}
+.neg {
+  color: var(--neg);
 }
