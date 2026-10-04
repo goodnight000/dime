@@ -4,7 +4,8 @@
 // carry their source; they are written so no number in them goes stale with a price change.
 import { state } from "./state.ts";
 import { now } from "./clock.ts";
-import { say } from "./voice.ts";
+import { say, word, usd } from "./voice.ts";
+import * as money from "./money.ts";
 
 export type Fact = { text: string; source?: string; url?: string };
 export type Topic = "delivery" | "rideshare" | "coffee" | "subscriptions" | "shopping" | "credit" | "investing" | "saving";
@@ -69,6 +70,9 @@ export function topicOf(merchant: string, category = ""): Topic | null {
 }
 
 type Hit = { title: string; url: string };
+const NEWS_SITES = ["reuters.com", "apnews.com", "cnbc.com", "bloomberg.com", "wsj.com", "nytimes.com", "marketwatch.com",
+  "axios.com", "businessinsider.com", "fortune.com", "theverge.com", "techcrunch.com", "npr.org", "bbc.com", "cnn.com",
+  "washingtonpost.com", "theguardian.com", "barrons.com", "finance.yahoo.com"];
 const cache = new Map<string, { at: number; hits: Hit[] }>(); // ponytail: no eviction, 8 queries max
 const used = new Set<string>(); // facts and URLs already said, so Dime doesn't repeat itself
 
@@ -85,6 +89,7 @@ async function exa(topic: Topic): Promise<Hit[]> {
       type: "fast",
       category: "news",
       numResults: 6,
+      includeDomains: NEWS_SITES, // real newsrooms only: open search returns SEO menu pages for "coffee prices"
       startPublishedDate: new Date(Date.now() - 14 * 86_400_000).toISOString(),
       contents: { highlights: { maxCharacters: 200 } },
     }),
@@ -94,7 +99,7 @@ async function exa(topic: Topic): Promise<Hit[]> {
   const data = (await res.json()) as { results?: { title?: string; url?: string }[] };
   const hits = (data.results ?? [])
     .filter((r) => r.url && r.title && r.title.length > 20)
-    .map((r) => ({ title: r.title!.trim(), url: r.url! }));
+    .map((r) => ({ title: r.title!.trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/, ""), url: r.url! })); // drop " | Site"
   cache.set(topic, { at: Date.now(), hits });
   return hits;
 }
@@ -133,10 +138,13 @@ export async function dropFact(topic: Topic | null, after: Promise<unknown> = Pr
   if (!topic || inflight || factToday()) return after;
   inflight = true;
   try {
-    const fact = getFact(topic); // fetch while Dime is still typing the reply
+    const fact = getFact(topic); // fetch (and word a headline) while Dime is still typing the reply
+    const take = fact.then((f) => f.url
+      ? word("dime", `A news headline tied to what Charles just did: "${f.text}" (${f.source}). Left today: ${usd(money.today(state, now()))}. Share it in one short bubble, in your voice: what it means for him. No numbers except the headline's and today's; never mention yesterday's numbers. Its link follows your words.`, [f.text]).then((w) => w?.[0] ?? `saw this 👀 "${f.text}"`)
+      : f.text);
     await after;
     const f = await fact;
-    const body = f.url ? `${f.text}\n${f.url}` : f.text;
+    const body = f.url ? `${await take}\n${f.url}` : f.text;
     await say("dime", body);
     const m = state.messages.filter((x) => x.thread === "dime" && x.body === body).at(-1);
     if (m) said.add(m.id);

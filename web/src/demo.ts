@@ -1,115 +1,196 @@
+// Charles's control panel (DESIGN.md §7), opened in a second window during the pitch: one button per
+// demo beat, in demo order, each with a key. Dense, plain, obviously a tool: an amber bar on top, no
+// product motion. The right column is the server's live state, polled every second, instant.
+import "./demo.css";
 import { api } from "./api.ts";
 import type { Screen } from "./main.ts";
 
-type Summary = { now: string; today: number; goal: { name: string; saved: number; price: number; pct: number } };
+type DemoState = {
+  now: string;
+  today: number;
+  goal: { name: string; saved: number; price: number; pct: number };
+  fund: string | null;
+  tone: "nice" | "savage";
+  force: "win" | "lose" | "push" | null;
+  chase: boolean;
+  typing: { dime: number; group: number };
+  pendingInvest: number | null;
+  log: { at: string; text: string; error?: boolean }[];
+};
+// [label, key, action, body]; key "" = no shortcut.
+type Btn = [string, string, string, object?];
+type Section = { title: string; buttons: Btn[]; seg?: "force" | "tone"; form?: "swipe" | "friend" };
 
-// Charles's control panel, opened in a second window: it fires the events the demo needs (a swipe,
-// morning, midnight) and shows the demo clock and today's number. Not part of the app.
-const PRESETS: [string, number, string][] = [
-  ["Blue Bottle", 7, "coffee"],
-  ["DoorDash", 24, "food"],
-  ["Sneakers", 280, "shopping"],
+const SECTIONS: Section[] = [
+  { title: "Morning", buttons: [["Morning", "M", "morning"]] },
+  {
+    title: "Swipe",
+    buttons: [
+      ["Blue Bottle matcha $7", "1", "swipe", { merchant: "Blue Bottle", amount: 7, category: "coffee" }],
+      ["DoorDash $24", "2", "swipe", { merchant: "DoorDash", amount: 24, category: "food" }],
+      ["Nobu $64", "3", "swipe", { merchant: "Nobu", amount: 64, category: "food" }],
+    ],
+    form: "swipe",
+  },
+  {
+    title: "Blackjack next hand",
+    seg: "force",
+    buttons: [
+      ["Win", "W", "force-blackjack", { result: "win" }],
+      ["Lose", "L", "force-blackjack", { result: "lose" }],
+      ["Push", "", "force-blackjack", { result: "push" }],
+      ["Fair", "F", "force-blackjack", { result: "fair" }],
+    ],
+  },
+  { title: "Should I buy", buttons: [["Sneakers $280", "S", "say", { thread: "dime", text: "should I buy these sneakers for $280?" }]] },
+  { title: "CFO", buttons: [["Scan", "C", "cfo-scan"]] },
+  {
+    title: "Group",
+    buttons: [
+      ["Post Penny claim", "P", "say", { thread: "group", text: "Will Penny spend $80 on DoorDash today?" }],
+      ["Penny DoorDash $38", "4", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 38 }],
+      ["Penny DoorDash $52", "5", "friend-swipe", { who: "Penny", merchant: "DoorDash", amount: 52 }],
+    ],
+    form: "friend",
+  },
+  { title: "Clock", buttons: [["Midnight", "N", "midnight"], ["Skip day", "D", "skip-day"]] },
+  { title: "Chase", buttons: [["Disconnect", "X", "disconnect", { id: "chase" }], ["Reconnect", "K", "connect", { id: "chase" }]] },
+  { title: "Goal", buttons: [["Fill goal", "G", "fill-goal"]] },
+  { title: "Tone", seg: "tone", buttons: [["Nice", "", "tone", { tone: "nice" }], ["Savage", "", "tone", { tone: "savage" }]] },
 ];
-const clock = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-});
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+const button = ([label, key, action, body]: Btn) =>
+  `<button type="button" data-action="${action}" data-body="${esc(JSON.stringify(body ?? {}))}"${key ? ` data-key="${key}"` : ""}>${esc(label)}${key ? ` <kbd>${key}</kbd>` : ""}</button>`;
+const FORMS = {
+  swipe: `<form class="dp-form" data-action="swipe">
+      <input name="merchant" placeholder="Merchant" required aria-label="Merchant" />
+      <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required aria-label="Amount" />
+      <input name="category" placeholder="Category" aria-label="Category" />
+      <button type="submit">Swipe</button>
+    </form>`,
+  friend: `<form class="dp-form" data-action="friend-swipe">
+      <select name="who" aria-label="Who"><option>Penny</option><option>Maya</option><option>Sam</option></select>
+      <input name="merchant" placeholder="Merchant" required aria-label="Merchant" />
+      <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required aria-label="Amount" />
+      <button type="submit">Friend swipe</button>
+    </form>`,
+};
+
+const clock = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const hms = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+const usd = (n: number) => "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
 const demo: Screen = (main, _session, current) => {
-  main.className = "demo";
+  main.className = "dp";
   main.innerHTML = `
-    <header class="page-head"><h1>Demo</h1><p class="readout"><span class="clock"></span><b class="today"></b></p></header>
-    <section>
-      <h2>Swipe</h2>
-      <div class="presets"></div>
-      <form class="swipe">
-        <input name="merchant" placeholder="Merchant" required />
-        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-        <input name="category" placeholder="Category" />
-        <button class="pill" type="submit">Swipe</button>
-      </form>
-    </section>
-    <section>
-      <h2>Time</h2>
-      <div class="actions">
-        <button class="pill" data-action="morning">Morning</button>
-        <button class="pill" data-action="midnight">Midnight</button>
-        <button class="pill" data-action="skip-day">Skip day</button>
-        <button class="pill" data-action="reset">Reset</button>
+    <header class="dp-head"><h1>Demo controls</h1><p class="dp-clock">—</p></header>
+    <div class="dp-cols">
+      <div class="dp-controls">
+        ${SECTIONS.map(
+          (s) => `<section${s.seg ? ` class="seg" data-seg="${s.seg}"` : ""}><h2>${s.title}</h2>
+            <div class="dp-row">${s.buttons.map(button).join("")}</div>
+            ${s.form ? FORMS[s.form] : ""}<p class="dp-err" aria-live="polite"></p></section>`,
+        ).join("")}
+        <section><h2>Reset</h2><div class="dp-row"><button type="button" class="danger" data-action="reset" data-key="R">Reset <kbd>R</kbd></button></div><p class="dp-err" aria-live="polite"></p></section>
       </div>
-    </section>
-    <section>
-      <h2>Wave 1</h2>
-      <div class="actions">
-        <button class="pill" data-action="cfo-scan">CFO scan</button>
-        <button class="pill" data-action="force-blackjack" data-body='{"result":"win"}'>Force blackjack win</button>
-        <button class="pill" data-action="force-blackjack" data-body='{"result":"lose"}'>Force blackjack lose</button>
-        <button class="pill" data-action="force-blackjack" data-body='{"result":"push"}'>Force blackjack push</button>
-        <button class="pill" data-action="force-blackjack" data-body='{"result":"fair"}'>Blackjack fair</button>
-        <button class="pill" data-action="disconnect" data-body='{"id":"chase"}'>Disconnect Chase</button>
-      </div>
-    </section>
-    <section>
-      <h2>Group</h2>
-      <div class="actions">
-        <button class="pill" data-action="friend-swipe" data-body='{"who":"Penny","merchant":"DoorDash","amount":38}'>Penny · DoorDash · $38</button>
-        <button class="pill" data-action="friend-swipe" data-body='{"who":"Penny","merchant":"DoorDash","amount":52}'>Penny · DoorDash · $52</button>
-      </div>
-      <form class="swipe friend-swipe">
-        <select name="who" aria-label="Who"><option>Penny</option><option>Maya</option><option>Sam</option></select>
-        <input name="merchant" placeholder="Merchant" required />
-        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-        <button class="pill" type="submit">Friend swipe</button>
-      </form>
-    </section>
-    <p class="note" aria-live="polite"></p>`;
-  const note = main.querySelector<HTMLElement>(".note")!;
-  const fire = async (action: string, body: object = {}) => {
-    note.textContent = "";
+      <aside class="dp-state">
+        <dl class="dp-kv"></dl>
+        <h2>Log</h2>
+        <ol class="dp-log"></ol>
+      </aside>
+    </div>`;
+
+  const flash = (b: HTMLElement, ok: boolean) => {
+    b.classList.remove("ok", "err");
+    void b.offsetWidth; // restart the flash on a repeat press
+    b.classList.add(ok ? "ok" : "err");
+    setTimeout(() => b.classList.remove("ok", "err"), 600);
+  };
+  const fire = async (b: HTMLElement, action: string, body: object) => {
+    const err = b.closest("section")!.querySelector<HTMLElement>(".dp-err")!;
     try {
       await api("POST", `/demo/${action}`, body);
-      note.textContent = `${action} ✓`;
-      void refresh();
+      err.textContent = "";
+      flash(b, true);
     } catch (e) {
-      note.textContent = `${action} failed: ${(e as Error).message}`;
+      err.textContent = `${action}: ${(e as Error).message === "unknown" ? "server didn't answer" : (e as Error).message}`;
+      flash(b, false);
     }
+    void refresh();
   };
-  const presets = main.querySelector(".presets")!;
-  for (const [merchant, amount, category] of PRESETS) {
-    const b = document.createElement("button");
-    b.className = "pill";
-    b.type = "button";
-    b.textContent = `${merchant} $${amount}`;
-    b.onclick = () => void fire("swipe", { merchant, amount, category });
-    presets.append(b);
-  }
-  const form = main.querySelector<HTMLFormElement>(".swipe")!;
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    const f = new FormData(form);
-    void fire("swipe", { merchant: f.get("merchant"), amount: Number(f.get("amount")), category: f.get("category") });
-  };
-  const friendForm = main.querySelector<HTMLFormElement>(".friend-swipe")!;
-  friendForm.onsubmit = (e) => {
-    e.preventDefault();
-    const f = new FormData(friendForm);
-    void fire("friend-swipe", { who: f.get("who"), merchant: f.get("merchant"), amount: Number(f.get("amount")) });
-  };
-  for (const b of main.querySelectorAll<HTMLButtonElement>("[data-action]"))
-    b.onclick = () => void fire(b.dataset.action!, b.dataset.body ? JSON.parse(b.dataset.body) : {});
 
+  // Reset needs a second press within 1.5s.
+  let armed = 0;
+  const press = (b: HTMLButtonElement) => {
+    if (b.dataset.action === "reset") {
+      if (Date.now() - armed > 1500) {
+        armed = Date.now();
+        b.firstChild!.textContent = "Press again to reset ";
+        setTimeout(() => Date.now() - armed >= 1500 && (b.firstChild!.textContent = "Reset "), 1500);
+        return;
+      }
+      armed = 0;
+      b.firstChild!.textContent = "Reset ";
+    }
+    void fire(b, b.dataset.action!, JSON.parse(b.dataset.body ?? "{}"));
+  };
+  for (const b of main.querySelectorAll<HTMLButtonElement>("button[data-action]")) b.onclick = () => press(b);
+  for (const f of main.querySelectorAll<HTMLFormElement>(".dp-form"))
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const body = Object.fromEntries(new FormData(f));
+      void fire(f.querySelector("button")!, f.dataset.action!, { ...body, amount: Number(body.amount) });
+    };
+
+  const keys = new Map([...main.querySelectorAll<HTMLButtonElement>("button[data-key]")].map((b) => [b.dataset.key!.toLowerCase(), b]));
+  const onKey = (e: KeyboardEvent) => {
+    if (!main.isConnected) return removeEventListener("keydown", onKey);
+    if (e.metaKey || e.ctrlKey || e.altKey || (e.target as Element).closest("input, select, textarea")) return;
+    const k = e.key.toLowerCase();
+    const b = k === "t" ? main.querySelector<HTMLButtonElement>('[data-seg="tone"] button:not(.on)') : keys.get(k);
+    if (!b) return;
+    e.preventDefault();
+    press(b);
+  };
+  addEventListener("keydown", onKey);
+  // T flips the tone; show it on the tone row.
+  main.querySelector('[data-seg="tone"] h2')!.insertAdjacentHTML("beforeend", " <kbd>T</kbd>");
+
+  const kv = main.querySelector<HTMLElement>(".dp-kv")!;
+  const log = main.querySelector<HTMLElement>(".dp-log")!;
   const refresh = async () => {
-    const s = await api<Summary>("GET", "/summary");
-    main.querySelector(".clock")!.textContent = clock.format(new Date(s.now));
-    main.querySelector(".today")!.textContent = `$${s.today} today`;
+    const s = await api<DemoState>("GET", "/demo/state");
+    main.querySelector(".dp-clock")!.textContent = clock.format(new Date(s.now)).replace(/,(?= \d+:)/, " ·");
+    const pending = [
+      s.typing.dime && "Dime typing",
+      s.typing.group && "Group typing",
+      s.pendingInvest && `${usd(s.pendingInvest)} waiting for a fund`,
+    ].filter(Boolean);
+    const rows: [string, string][] = [
+      ["Today", usd(s.today)],
+      ["Goal", `${s.goal.pct}% · ${usd(s.goal.saved)} of ${usd(s.goal.price)}`],
+      ["Fund", s.fund ?? "Not picked"],
+      ["Blackjack next", s.force ?? "fair"],
+      ["Tone", s.tone],
+      ["Chase", s.chase ? "Connected" : "Disconnected"],
+      ["Pending", pending.join(", ") || "Nothing"],
+    ];
+    kv.innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("");
+    log.innerHTML = s.log
+      .slice()
+      .reverse()
+      .map((l) => `<li${l.error ? ' class="err"' : ""}><time>${hms.format(new Date(l.at))}</time><span>${esc(l.text)}</span></li>`)
+      .join("");
+    for (const b of main.querySelectorAll<HTMLButtonElement>('[data-seg="force"] button'))
+      b.classList.toggle("on", JSON.parse(b.dataset.body!).result === (s.force ?? "fair"));
+    for (const b of main.querySelectorAll<HTMLButtonElement>('[data-seg="tone"] button'))
+      b.classList.toggle("on", JSON.parse(b.dataset.body!).tone === s.tone);
+    main.classList.remove("down");
   };
   const tick = async () => {
     while (current() && main.isConnected) {
-      await refresh().catch(() => {});
+      await refresh().catch(() => main.classList.add("down"));
       await new Promise((r) => setTimeout(r, 1000));
     }
   };

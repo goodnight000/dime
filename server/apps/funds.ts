@@ -2,7 +2,7 @@
 // for a fund (state.pendingInvest), moves it into the ledger in that fund and Dime confirms.
 import { state, id, type App, type FundId } from "../state.ts";
 import { FUNDS, RISK, fund, isFund } from "../funds-data.ts";
-import { say, usd } from "../voice.ts";
+import { speak, usd } from "../voice.ts";
 
 const WON = ["win", "blackjack", "dime-bust"];
 
@@ -11,10 +11,16 @@ export type FundsState = {
   risk: typeof RISK;
   selected: FundId; // preselected row: the current fund, else the CFO's default
   picked: FundId | null; // set once confirmed; the card is a record after that
+  /** What this pick moves now, if anything: a blackjack loss or the CFO's idle cash (labels the button). */
+  moving?: { amount: number; reason: string };
 };
 
 export function create(): App {
-  const s: FundsState = { funds: FUNDS, risk: RISK, selected: state.user.fund ?? "VOO", picked: null };
+  const owed = state.pendingInvest;
+  const s: FundsState = {
+    funds: FUNDS, risk: RISK, selected: state.user.fund ?? "VOO", picked: null,
+    ...(owed ? { moving: { amount: owed.amount, reason: owed.reason } } : {}),
+  };
   return { id: id(), kind: "funds", version: 1, state: s };
 }
 
@@ -37,7 +43,7 @@ export const actions: Record<string, (app: App, body: any) => void> = {
           a.state.fund = { id: f.id, name: f.name };
           a.version++;
         }
-      void say("dime", `${usd(owed.amount)} into ${into}. Future you says thanks.`);
-    } else void say("dime", `Locked in. Lose a hand and it lands in ${into}.`);
+      void speak("dime", `Charles picked ${f.name} as his fund. The ${usd(owed.amount)} waiting to be invested just went into it.`, [`${usd(owed.amount)} into ${into}. future you says thanks 📈`]);
+    } else void speak("dime", `Charles picked ${f.name} as his fund. Blackjack losses get invested there from now on.`, [`locked in 🔒 lose a hand and it lands in ${into}`]);
   },
 };

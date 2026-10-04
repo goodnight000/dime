@@ -14,6 +14,7 @@ export type Message = {
   app?: string; // mini app id; the card renders instead of the body
   created_at: string;
   tapback?: Tapback | null;
+  reaction?: Tapback | null; // Dime's tapback on Charles's message (an "ok" needs no words)
   reply_to?: { id: string; direction: "in" | "out"; body: string } | null;
 };
 export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
@@ -101,10 +102,8 @@ function seed(): State {
     sweeps,
     bonus: [],
     messages: [
-      dime(at(1, 8), "Morning ☀️ $311 today."),
-      dime(at(1, 23, 59), "$95 left. Moved to the iPhone 📱 59%"),
-      dime(at(0, 8), "Morning ☀️ $311 today."),
-      dime(at(0, 8), "Verizon autopays Tuesday, already set aside."),
+      dime(at(1, 8), "morning ☀️ $311 today"),
+      dime(at(1, 23, 59), "$95 left. moved to the iPhone 📱 59%"),
       friend("Penny", at(1, 20), "who's down for thai tonight"),
       friend("Maya", at(1, 20, 2), "me but cheap thai"),
       friend("Sam", at(1, 20, 5), "I'm on a no-spend streak don't tempt me"),
@@ -128,7 +127,9 @@ function seed(): State {
       { id: "chase", name: "Chase Checking", kind: "bank", connected: true },
       { id: "robinhood", name: "Robinhood", kind: "brokerage", connected: false },
     ],
-    clockOffsetMs: 0,
+    // The demo day starts at 9:30 AM whatever the real time, so the morning beat reads as morning and
+    // the day's beats (group, midnight) stay in order. Can be negative; jump() only moves forward.
+    clockOffsetMs: new Date(at(0, 9, 30)).getTime() - Date.now(),
     typing: { dime: 0, group: 0 },
     pendingInvest: null,
     forceBlackjack: null,

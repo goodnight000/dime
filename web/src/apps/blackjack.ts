@@ -100,7 +100,7 @@ function outcome(v: View, s: S, result: Result | "push") {
   const amt = usd(s.amount);
   const won = { win: "Won.", blackjack: "Blackjack.", "dime-bust": "Dime busts." } as Record<string, string>;
   const head = v.out.querySelector("b")!;
-  const sub = v.out.querySelector("span")!;
+  const sub = v.out.querySelector(":scope > span")!; // not the amount inside the headline
   const money = (pre: string, post: string) => {
     const n = document.createElement("span");
     n.className = "tab";
@@ -115,7 +115,7 @@ function outcome(v: View, s: S, result: Result | "push") {
     sub.textContent = `${amt} doesn't touch today.`;
   } else if (s.fund) {
     money(`${result === "bust" ? "Bust" : "Lost"}. `, ` → ${s.fund.name}`);
-    sub.textContent = s.fund.id === "CASH" ? "Saved in Cash. Ledger updated." : `Invested in ${s.fund.id}. Ledger updated.`;
+    sub.textContent = s.fund.id === "CASH" ? "Saved in Cash." : `Invested in ${s.fund.id}.`;
   } else {
     money(`${result === "bust" ? "Bust" : "Lost"}. `, " is waiting for a fund.");
     sub.textContent = "Pick one below.";
@@ -140,8 +140,9 @@ function lose(v: View, result: Result | null) {
   v.hand.player.classList.toggle("lost", !!result && !WON.includes(result));
 }
 
-/** One card from the shoe into its slot; resolves when it lands, with the total updated. */
-async function deal(v: View, who: "player" | "dealer", c: Card | null, i: number, delay = 0) {
+/** One card from the shoe into its slot; resolves when it lands, with the total updated (unless
+ *  `tally` is false: the opening deal shows its totals once, after all four cards land). */
+async function deal(v: View, who: "player" | "dealer", c: Card | null, i: number, delay = 0, tally = true) {
   const pc = cardEl(c, i);
   v.hand[who].append(pc);
   // Travel starts at the shoe's centre: the offset from this card's own resting centre.
@@ -154,7 +155,7 @@ async function deal(v: View, who: "player" | "dealer", c: Card | null, i: number
   await later(delay + T.slow);
   pc.classList.remove("dealt"); // landed: nothing about it moves again but the flip, dim, sweep
   v.shown[who][i] = c;
-  totals(v);
+  if (tally) totals(v);
 }
 
 /** Animates the felt from what it shows to `to` (a hand of this round). */
@@ -163,7 +164,8 @@ async function play(v: View, to: Hand) {
   if (!m.player.length && to.player.length) {
     // The opening deal: you, Dime face up, you, Dime's hole card face down.
     const order = [["player", 0], ["dealer", 0], ["player", 1], ["dealer", 1]] as const;
-    await Promise.all(order.map(([who, i], k) => deal(v, who, who === "dealer" && i === 1 ? null : to[who][i], i, k * DEAL_GAP)));
+    await Promise.all(order.map(([who, i], k) => deal(v, who, who === "dealer" && i === 1 ? null : to[who][i], i, k * DEAL_GAP, false)));
+    totals(v);
   }
   for (let i = m.player.length; i < to.player.length; i++) await deal(v, "player", to.player[i], i);
   if (value(to.player).t > 21) await later(360);
@@ -226,6 +228,7 @@ async function advance(v: View, s: S) {
   }
   await play(v, s);
   if (s.result && !v.shown.result) await resolve(v, s, s.result, s.result === "bust" ? 0 : 400); // bust already held 360ms
+  else if (s.result && v.shown.result) outcome(v, s, s.result); // settled since: "waiting for a fund" → the fund it went to
 }
 
 function mount(el: HTMLElement, s: S): View {

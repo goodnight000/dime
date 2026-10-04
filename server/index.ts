@@ -28,7 +28,7 @@ const demo: Record<string, (b: any) => unknown> = {
     await midnight();
     await morning();
   },
-  reset: () => reset(),
+  reset: () => (reset(), (demoLog.length = 0)),
   disconnect: (b) => accounts.disconnect(String(b.id || "chase")), // replay the connect flow
   // Stubs for wave 1 owners.
   "cfo-scan": () => cfoScan(),
@@ -41,10 +41,59 @@ const demo: Record<string, (b: any) => unknown> = {
   "force-blackjack": (b) => {
     state.forceBlackjack = ["win", "lose", "push"].includes(b.result) ? b.result : null;
   },
+  connect: (b) => {
+    if (!accounts.connect(String(b.id || "chase"))) throw new Error("no such account");
+  },
+  tone: (b) => {
+    if (b.tone !== "nice" && b.tone !== "savage") throw new Error("tone is nice or savage");
+    state.user.tone = b.tone;
+  },
+  // Charles's line, posted for him so he doesn't type on stage; Dime (or the group) answers as usual.
+  say: (b) => {
+    const text = typeof b.text === "string" ? b.text.trim() : "";
+    if (!text) throw new Error("text");
+    const t = thread(b.thread);
+    post({ thread: t, direction: "in", body: text });
+    return reply(t, text);
+  },
+  // Payoff: top the goal up to one sweep short of the price, then midnight sweeps the rest in.
+  "fill-goal": () => {
+    const g = state.goal;
+    g.saved = Math.max(g.saved, g.price - money.today(state, now()));
+    return midnight();
+  },
 };
 
+// The panel's log: demo actions (and async failures) interleaved with the thread, newest last.
+const demoLog: { at: string; text: string; error?: boolean }[] = [];
+const logDemo = (text: string, error = false) => {
+  demoLog.push({ at: now().toISOString(), text, error });
+  demoLog.splice(0, demoLog.length - 20);
+};
+function demoState() {
+  const at = now();
+  const g = state.goal;
+  const said = state.messages.slice(-10).map((m) => {
+    const who = m.direction === "in" ? "Charles" : (m.sender ?? "Dime");
+    const what = m.app ? `[${state.apps[m.app]?.kind ?? "card"}]` : m.body;
+    return { at: m.created_at, text: `${m.thread === "group" ? "group · " : ""}${who}: ${what}` };
+  });
+  return {
+    now: at.toISOString(),
+    today: money.today(state, at),
+    goal: { name: g.name, saved: g.saved, price: g.price, pct: money.pct(state) },
+    fund: state.user.fund,
+    tone: state.user.tone,
+    force: state.forceBlackjack,
+    chase: state.accounts.find((a) => a.id === "chase")?.connected ?? false,
+    typing: state.typing,
+    pendingInvest: state.pendingInvest?.amount ?? null,
+    log: [...demoLog, ...said].sort((a, b) => a.at.localeCompare(b.at)).slice(-10),
+  };
+}
+
 const server = Bun.serve({
-  port: 8787,
+  port: Number(process.env.PORT) || 8787,
   routes: {
     "/api/session": () =>
       json({ owner: { display_name: state.user.name, onboarded: true }, agent: { name: "Dime" } }),
@@ -100,16 +149,21 @@ const server = Bun.serve({
       },
     },
 
+    "/api/demo/state": () => json(demoState()),
     "/api/demo/:action": {
       POST: async (req) => {
         const action = demo[req.params.action];
         if (!action) return bad("not_found", 404);
+        const b = await body(req);
+        const name = [req.params.action, ...Object.values(b ?? {})].join(" ");
         try {
           // Events resolve after Dime finishes typing; the panel only needs the state change.
-          void Promise.resolve(action(await body(req))).catch((e) => console.error(req.params.action, e));
+          void Promise.resolve(action(b)).catch((e) => (console.error(name, e), logDemo(`${name} failed: ${(e as Error).message}`, true)));
         } catch (e) {
+          logDemo(`${name} failed: ${(e as Error).message}`, true);
           return bad((e as Error).message);
         }
+        logDemo(name);
         return json({ ok: true, now: now().toISOString(), today: money.today(state, now()) });
       },
     },

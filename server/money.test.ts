@@ -51,3 +51,16 @@ test("a blackjack loss leaves today, pending a fund or in the ledger", () => {
   state.pendingInvest = null;
   expect(money.today(state, now())).toBe(before - 10);
 });
+
+test("girl math words: under a day of pace is hours, else rounded days", () => {
+  const p = money.pace(state, now());
+  expect(money.lag(state, now(), p / 8)).toBe("~3 hours");
+  expect(money.lag(state, now(), p * 1.4)).toBe("1 day");
+  expect(money.lag(state, now(), p * 2.6)).toBe("3 days");
+});
+
+test("faithful: '$5k' counts as 5000", async () => {
+  const { faithful } = await import("./voice.ts");
+  expect(faithful("can't blackjack a $5k car", "a car for $5,000")).toBe(true);
+  expect(faithful("a $6k car", "a car for $5,000")).toBe(false);
+});

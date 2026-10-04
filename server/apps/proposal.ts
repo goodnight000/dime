@@ -10,6 +10,7 @@ export type ProposalState = {
   summary: string; // the ask, one sentence
   // The thing itself, drawn on the inset: name left; right "was → now delta" and/or a note.
   artifact: { name: string; was?: string; now?: string; delta?: string; note?: string } | null;
+  verb?: string; // the yes button, answering the card's question: "Call Comcast" (default "Approve")
   working: string; // the answer row while it runs: "Approved · calling Comcast"
   declined: string; // the answer row after Not now
   status: "open" | "working" | "done" | "declined" | "failed";

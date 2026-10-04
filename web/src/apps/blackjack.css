@@ -54,24 +54,25 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The shoe: where the cards come from. Three backs, mostly off the felt. */
+/* The shoe: where the cards come from. A small stack of three backs, whole, in the felt's top-right
+   corner (inside the card's clip, so it reads as a deck, not a cut-off artifact). */
 .bj .shoe {
   position: absolute;
-  top: -1.9rem;
-  right: -0.5rem;
-  width: 2.5rem;
-  height: 3.5rem;
-  rotate: -8deg;
+  top: 0.55rem;
+  right: 0.75rem;
+  width: 1.375rem;
+  height: 1.875rem;
+  rotate: -6deg;
 }
 .bj .shoe i {
   position: absolute;
   inset: 0;
 }
 .bj .shoe i:nth-child(1) {
-  translate: -4px 4px;
+  translate: -3px 3px;
 }
 .bj .shoe i:nth-child(2) {
-  translate: -2px 2px;
+  translate: -1.5px 1.5px;
 }
 
 .bj-zone {

@@ -17,6 +17,8 @@ type Data = { accounts: Account[]; recent: Txn[] };
 const C = 2 * Math.PI * 18; // the ring's circumference (r = 18 in a 40-unit box)
 const TICK = 800;
 const short = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+/** "Checking ••4821 · Savings ••0937" wraps only before a "·", which travels with what follows. */
+const keep = (t: string) => t.split(" · ").map((x) => x.replace(/ /g, "\u00a0")).join(" ·\u00a0");
 const RING = `<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" /></svg>`;
 const BADGE = `<span class="badge" aria-hidden="true">${icon("check")}</span>`;
 
@@ -52,7 +54,7 @@ const accounts: Screen = (main, _session, current) => {
   function row(a: Account): HTMLElement {
     const li = document.createElement("li");
     li.innerHTML = `<div class="row svc">
-      <span class="svc-gl">${icon(a.glyph)}${RING}${BADGE}</span>
+      <span class="svc-gl">${icon(a.glyph === "mark" ? "cue" : a.glyph)}${RING}${BADGE}</span>
       <span class="t"><b></b><span class="slot sub"><small></small><small></small></span></span>
       <span class="slot act">
         <span class="go"><button class="pill sm" type="button">Connect</button></span>
@@ -61,6 +63,7 @@ const accounts: Screen = (main, _session, current) => {
         <span class="word err"><button class="link" type="button">Try again</button></span>
       </span>
     </div>`;
+    li.dataset.id = a.id; // Chase keeps the one solid Connect: it's the demo's
     li.querySelector("b")!.textContent = a.name;
     for (const b of li.querySelectorAll("button")) b.onclick = () => void connect(a, li);
     li.querySelector<HTMLButtonElement>(".pill")!.ariaLabel = `Connect ${a.name}`;
@@ -75,7 +78,7 @@ const accounts: Screen = (main, _session, current) => {
     svc.classList.remove("drawing", "green", "err");
     const sub = li.querySelector<HTMLElement>(".sub")!;
     const lines = sub.children;
-    lines[0].textContent = a.subtitle;
+    lines[0].textContent = keep(a.subtitle);
     lines[0].classList.remove("danger");
     swap(sub, lines[0]);
     const act = li.querySelector<HTMLElement>(".act")!;
@@ -139,7 +142,7 @@ const accounts: Screen = (main, _session, current) => {
     await later(T.quick);
     svc.classList.remove("green");
     ring.style.strokeDashoffset = "";
-    say(sub, fresh.subtitle);
+    say(sub, keep(fresh.subtitle));
     swap(act, act.querySelector(".ok")!);
     busy.delete(a.id);
     if (a.id === "chase" && data) {
@@ -197,7 +200,7 @@ const accounts: Screen = (main, _session, current) => {
           const was = JSON.parse(li.dataset.v!) as Account;
           // Only the subtitle changed (the ledger total moved): swap the words, nothing else.
           if (was.connected === a.connected) {
-            say(li.querySelector<HTMLElement>(".sub")!, a.subtitle);
+            say(li.querySelector<HTMLElement>(".sub")!, keep(a.subtitle));
             li.dataset.v = JSON.stringify(a);
           } else rest(li, a);
         }

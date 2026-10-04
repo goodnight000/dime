@@ -77,17 +77,27 @@ export function place(app: App, bet: Bet) {
   if (mine) m.estimate = estimate(m.bets, mine);
 }
 
-/** Settles: payouts, and Charles's result lands in today (bonus; a loss is a negative bonus). */
-export function settle(app: App, winner: Side, spent: number) {
+/** Decides the market (status, payouts) without showing it: returns `credit`, which lands Charles's
+ *  result in today (bonus; a loss is a negative bonus) and bumps the card. The group settles in
+ *  that order: Dime calls it, then the money moves and the card turns over. */
+export function decide(app: App, winner: Side, spent: number) {
   const m: Market = app.state;
   m.status = winner;
   m.spent = spent;
   m.settledAt = now().toISOString();
   m.payouts = payouts(m.bets, winner);
-  const mine = m.payouts.find((p) => p.who === "Charles");
-  if (mine?.net) state.bonus.push({ at: m.settledAt, amount: mine.net });
-  app.version++;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    const mine = m.payouts!.find((p) => p.who === "Charles");
+    if (mine?.net) state.bonus.push({ at: m.settledAt!, amount: mine.net });
+    app.version++;
+  };
 }
+
+/** Settles at once: decided and credited. */
+export const settle = (app: App, winner: Side, spent: number) => decide(app, winner, spent)();
 
 export const actions: Record<string, (app: App, body: any) => void> = {
   bet: (app, body) => {

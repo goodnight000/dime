@@ -4,12 +4,19 @@
 import "./funds.css";
 import type { Renderer } from "./index.ts";
 import { T, swap, later } from "../motion.ts";
+import { usd } from "../num.ts";
 
 type Fund = {
   id: string; ticker: string; name: string; risk: 1 | 2 | 3 | 4;
   blurb: string; goodFor: string; fact: string; ret: { pct: number; period: string };
 };
-type State = { funds: Fund[]; risk: Record<number, string>; selected: string; picked: string | null };
+type State = {
+  funds: Fund[];
+  risk: Record<number, string>;
+  selected: string;
+  picked: string | null;
+  moving?: { amount: number; reason: string }; // idle cash ("Move $2,000 to …") or a loss ("Send $280 to …")
+};
 
 const CHECK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`;
 const seen = new WeakMap<HTMLElement, { picked: string | null; selected: string }>();
@@ -31,7 +38,7 @@ const funds: Renderer = (el, app, act) => {
   // First paint: the final state, still.
   const risk = (f: Fund) => s.risk[f.risk];
   el.innerHTML = `<div class="fp">
-    <div class="fp-list" role="radiogroup" aria-label="Where losses go">${s.funds
+    <div class="fp-list" role="radiogroup" aria-label="${s.moving?.reason === "cfo" ? "Where the cash goes" : "Where losses go"}">${s.funds
       .map(
         (f) => `<div class="fp-row" role="radio" data-id="${f.id}" aria-checked="false" tabindex="-1">
           <span class="fp-radio" aria-hidden="true"><i></i></span>
@@ -77,7 +84,9 @@ const funds: Renderer = (el, app, act) => {
       r.tabIndex = on ? 0 : -1;
       r.classList.toggle("landing", on && animate);
     }
-    btnLabel.firstElementChild!.textContent = `Send losses to ${f.name}`;
+    btnLabel.firstElementChild!.textContent = s.moving
+      ? `${s.moving.reason === "cfo" ? "Move" : "Send"} ${usd(s.moving.amount)} to ${f.name}`
+      : `Send losses to ${f.name}`;
     if (!animate) return fill(detail.firstElementChild!, f);
     const next = [...detail.children].find((c) => !c.classList.contains("on"))!;
     fill(next, f);

@@ -1,0 +1,2 @@
+[test]
+preload = ["./server/agent/test-env.ts"]

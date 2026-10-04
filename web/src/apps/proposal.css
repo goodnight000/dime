@@ -39,7 +39,7 @@
   margin: 0 0.375rem 0.375rem;
   padding: 0.6rem calc(var(--card-pad) - 0.375rem);
   border-radius: 12px;
-  background: var(--pane);
+  background: var(--inset);
   font-size: var(--step--1);
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
@@ -105,7 +105,7 @@
   cursor: pointer;
   font-size: var(--step--1);
   font-weight: 600;
-  color: var(--blue);
+  color: var(--blue-ink);
   transition:
     background-color var(--quick),
     scale var(--t-quick) ease-out;

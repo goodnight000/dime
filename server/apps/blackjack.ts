@@ -8,8 +8,9 @@
 // comes off the deck next so the next resolution goes its way; totals are always the real cards'.
 import { state, id, type App } from "../state.ts";
 import { now } from "../clock.ts";
+import * as money from "../money.ts";
 import { fund } from "../funds-data.ts";
-import { say, usd } from "../voice.ts";
+import { speak, usd } from "../voice.ts";
 import { create as fundsCard } from "./funds.ts";
 
 type Suit = "S" | "H" | "D" | "C";
@@ -116,21 +117,28 @@ function settle(app: App, draws: number, revealed: boolean) {
   const at = now().toISOString();
   // Dime speaks once the card has played its ending (flip, Dime's draws 600ms apart, outcome).
   const pause = 1500 + (revealed ? 700 + 600 * draws : 0);
-  const later = (...lines: (string | App)[]) => void Bun.sleep(pause).then(() => say("dime", ...lines));
+  const how = { win: "Charles beat you", blackjack: "Charles hit blackjack on the first deal", "dime-bust": "you busted", lose: "you beat Charles", bust: "Charles busted" }[s.result!];
+  const facts = `Blackjack hand against you (Dime) for ${s.item} (${usd(s.amount)}) just ended: ${how}. The card above already shows the result: react to it, don't restate it. Call yourself "me", never "the CFO" or "the dealer".`;
+  // Called after the money moved, so "left today" is the settled number.
+  const later = (outcome: string, ...lines: (string | App)[]) =>
+    void speak("dime", `${facts} ${outcome} Left today now: ${usd(money.today(state, now()))}.`, lines, pause);
   if (WON.includes(s.result!)) {
     state.txns.push({ id: id(), at, merchant: title(s.item), amount: s.amount, category: "shopping", kind: "spend", covered: true });
-    return later(s.result === "blackjack" ? `Blackjack on the first deal?? The CFO is shook 🃏` : `GG. The CFO is buying your ${s.item} 💅`);
+    return later(`He wins: the ${s.item} is on the house and doesn't count against today.`,
+      s.result === "blackjack" ? `blackjack on the first deal?? I'm shook 🃏` : `gg. I'm buying your ${s.item} 💅`);
   }
   const f = state.user.fund;
   if (f) {
     state.ledger.push({ fund: f, amount: s.amount, at, reason: "blackjack" });
     s.fund = { id: f, name: fund(f).name };
-    return later(`House wins. ${usd(s.amount)} is in the ${fund(f).name} now, future you says thanks 📈`);
+    return later(`He loses: no ${s.item}, and the ${usd(s.amount)} left today and went into his ${fund(f).name} fund (invested, not lost).`,
+      `house wins. ${usd(s.amount)} is in the ${fund(f).name} now, future you says thanks 📈`);
   }
   state.pendingInvest = { amount: s.amount, at, reason: "blackjack" };
   const picker = fundsCard();
   state.apps[picker.id] = picker;
-  later(`House wins. ${usd(s.amount)} has to go somewhere. Pick a fund 👇`, picker);
+  later(`He loses: no ${s.item}. The ${usd(s.amount)} left today and is parked until he picks a fund (do not say it is invested yet): a fund picker card follows your words.`,
+    `house wins. ${usd(s.amount)} has to go somewhere. pick a fund 👇`, picker);
 }
 
 export function create(input: any = {}): App {

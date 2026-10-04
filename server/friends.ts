@@ -4,12 +4,13 @@ import { state, id, type App, type Friend } from "./state.ts";
 import { now } from "./clock.ts";
 import * as money from "./money.ts";
 import { open } from "./apps/index.ts";
-import { place, settle, type Market, type Side } from "./apps/market.ts";
-import { say, usd } from "./voice.ts";
+import { place, settle, decide, type Market, type Side } from "./apps/market.ts";
+import { speak, word, usd } from "./voice.ts";
 
 type Speaker = Friend | "Dime";
 // `then` changes a card when the line lands; `wait` holds the line back first (ms).
-type Line = { who: Speaker; body?: string; app?: App; then?: () => void; wait?: number };
+// A promised body is Dime's line still being worded by the model: the typing indicator covers the wait.
+type Line = { who: Speaker; body?: string | Promise<string | undefined>; app?: App; then?: () => void; wait?: number };
 // How long a card takes to play a change (bubble lands, face pops, bar + pots roll): the next
 // typing indicator waits it out, so one thing moves at a time (DESIGN.md rule 1).
 const CARD_BEAT = 2000;
@@ -33,15 +34,22 @@ export function chat(lines: Line[]): Promise<void> {
     let moved = false; // the previous line changed a card
     for (const l of lines) {
       if (state.messages !== messages) return;
-      const text = l.body ?? "";
-      const gap = last && last !== l.who ? 500 + (hash(text) % 600) : 0;
+      const known = typeof l.body === "string" ? l.body : "";
+      const gap = last && last !== l.who ? 500 + (hash(known) % 600) : 0;
       const pause = Math.max(gap, moved ? CARD_BEAT : 0, l.wait ?? 0);
       if (pause) await Bun.sleep(pause);
       if (state.messages !== messages) return;
       typer = l.who;
       state.typing.group++;
       try {
-        await Bun.sleep(l.app ? 900 : clamp(800, 25 * text.length, 2200));
+        const started = Date.now();
+        const text = (await l.body) ?? "";
+        if (!text && !l.app) {
+          // The model said it in fewer bubbles than the template; what follows the words still happens.
+          if (l.then) (l.then(), (moved = true));
+          continue;
+        }
+        await Bun.sleep(Math.max(0, (l.app ? 900 : clamp(800, 25 * text.length, 2200)) - (Date.now() - started)));
         if (state.messages !== messages) return;
         const sender = l.who === "Dime" ? {} : { sender: l.who };
         state.messages.push({
@@ -59,6 +67,13 @@ export function chat(lines: Line[]): Promise<void> {
   };
   chain = chain.then(run, run);
   return chain;
+}
+
+/** Dime's group lines: the model words `facts` with the group as context; the template is the
+ * fallback. One slot per possible bubble (up to 3); slots the words don't fill are skipped. */
+function dime(facts: string, template: string[], wait?: number): Line[] {
+  const words = word("group", facts, template).then((w) => w ?? template);
+  return [0, 1, 2].map((i) => ({ who: "Dime" as const, body: words.then((w) => w[i]), ...(i === 0 && wait ? { wait } : {}) }));
 }
 
 // ---- who they are ---------------------------------------------------------------------------------
@@ -115,7 +130,7 @@ const CAST: Record<
 // ---- claims ---------------------------------------------------------------------------------------
 
 const CLAIM_RE =
-  /\b(?:will|is|does|can|would)\s+([a-z]+)\s+(?:going to\s+|gonna\s+)?(?:spend|drop|blow)\s+(?:over\s+|more than\s+|at least\s+)?\$\s?(\d+)\s+(?:on|at)\s+(.+?)(?:\s+(?:today|tonight|by midnight))?\s*[?.!]*$/i;
+  /\b(?:will|is|does|can|would)\s+([a-z]+)\s+(?:going to\s+|gonna\s+)?(?:spend|drop|blow)\s+(?:over\s+|more than\s+|at least\s+)?\$\s?(\d+)\s+(?:on|at)\s+(.+?)(?:\s+(?:today|tonight|by midnight|this week(?:end)?|tomorrow|this month|by \w+))?\s*[?.!]*$/i; // markets settle tonight whatever the window
 
 /** "Will Penny spend $80 on DoorDash today?" → the checkable rule; `subject` null for a non-friend. */
 export function parseClaim(text: string): { subject: Friend | null; name: string; threshold: number; merchant: string } | null {
@@ -144,16 +159,19 @@ const openMarkets = () =>
   Object.values(state.apps).filter((a) => a.kind === "market" && (a.state as Market).status === "open");
 
 /** Restate the claim as a rule, post the card, then the subject opts in and the others bet. */
-function launch(rule: { subject: Friend; merchant: string; threshold: number }, intro: string[] = []) {
+function launch(rule: { subject: Friend; merchant: string; threshold: number }, intro: { facts: string; lines: string[] } = { facts: "", lines: [] }) {
   const app = open("market", rule);
   const m = app.state as Market;
   const ctx = (stake: number): Ctx => ({ subject: rule.subject, merchant: rule.merchant, stake: usd(stake) });
   const others = FRIENDS.filter((f) => f !== rule.subject);
   const her = rule.subject === "Penny" || rule.subject === "Maya" ? "her" : "his";
   const subjectStake = 10;
+  const restate = `${rule.subject}, ${rule.merchant}, ${usd(rule.threshold)} or more by 11:59 PM. I settle it off ${her} card.`;
   return chat([
-    ...intro.map((body) => ({ who: "Dime" as const, body })),
-    { who: "Dime", body: `${rule.subject}, ${rule.merchant}, ${usd(rule.threshold)} or more by 11:59 PM. I settle it off ${her} card.` },
+    ...dime(
+      `${intro.facts}New market: "${m.question}" Rule: ${rule.subject} spends ${usd(rule.threshold)} or more at ${rule.merchant} by 11:59 PM tonight; you settle it off ${her} card. Restate the rule so everyone agrees on it; the market card follows your words. No odds, stakes or terms beyond these.`,
+      [...intro.lines, restate],
+    ),
     { who: "Dime", app },
     {
       who: rule.subject,
@@ -191,26 +209,32 @@ function propose() {
   const threshold = Math.max(10, Math.round((avg * 2) / 10) * 10);
   return launch(
     { subject: top.who, merchant: top.merchant, threshold },
-    [`${top.who} averages ${usd(avg)} a night on ${top.merchant}. Line's at double.`],
+    {
+      facts: `Charles asked for a bet. You picked the juiciest habit: ${top.who} averages ${usd(avg)} a night on ${top.merchant}, so the line is double that. `,
+      lines: [`${top.who} averages ${usd(avg)} a night on ${top.merchant}. Line's at double.`],
+    },
   );
 }
 
 /** Everything Charles says in The Group. */
 export function groupReply(text: string): Promise<void> {
   const claim = parseClaim(text);
-  if (claim && !claim.subject) return chat([{ who: "Dime", body: `I can only see Penny, Maya and Sam's cards. ${claim.name} isn't in here.` }]);
+  if (claim && !claim.subject)
+    return chat(dime(`Charles wants a bet on ${claim.name}, who isn't in this group. You can only see Penny, Maya and Sam's cards, so no market.`, [`I can only see Penny, Maya and Sam's cards. ${claim.name} isn't in here.`]));
   if (claim?.subject) {
     const rule = { subject: claim.subject, merchant: claim.merchant, threshold: claim.threshold };
     const dup = openMarkets().find((a) => {
       const m = a.state as Market;
       return m.subject === rule.subject && m.merchant === rule.merchant;
     });
-    if (dup) return chat([{ who: "Dime", body: `There's already a market on ${rule.subject} and ${rule.merchant} today 👆` }]);
+    if (dup)
+      return chat(dime(`Charles proposed a bet on ${rule.subject} and ${rule.merchant}, but there's already an open market on that today (up in the chat). No new market.`, [`There's already a market on ${rule.subject} and ${rule.merchant} today 👆`]));
     return launch(rule);
   }
   if (/\b(market|bet|odds|wager|line)\b/i.test(text)) return propose();
   const named = FRIENDS.find((f) => new RegExp(`\\b${f}\\b`, "i").test(text));
-  if (!named && /\bdime\b/i.test(text)) return chat([{ who: "Dime", body: "I just run the bets in here. Give me a claim 👀" }]);
+  if (!named && /\bdime\b/i.test(text))
+    return chat(dime(`Charles talked to you in the group: "${text}". In here you run spending bets on Penny, Maya and Sam; he hasn't made a claim you can turn into a market (like "will Penny spend $80 on DoorDash today?"). One short bubble.`, ["I just run the bets in here. Give me a claim 👀"]));
   const who = named ?? FRIENDS[hash(text) % 3];
   const lines = CAST[who].banter;
   return chat([{ who, body: lines[hash(text + who) % lines.length] }]);
@@ -227,8 +251,9 @@ export function react(app: App, side: Side) {
 
 const names = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
-/** Dime calls it in the group, the room reacts, and Charles hears what it did to today. */
-function announce(app: App, dm = true) {
+/** Dime calls it in the group, the room reacts, and Charles hears what it did to today. `credit`
+ *  (from decide) runs once Dime's words are out: only then do today's number and the card move. */
+function announce(app: App, dm = true, credit = () => {}) {
   const m = app.state as Market;
   const winners = m.payouts!.filter((p) => p.net > 0);
   const losers = m.payouts!.filter((p) => p.net < 0);
@@ -241,17 +266,35 @@ function announce(app: App, dm = true) {
     : "Nobody on the other side. Everyone gets their money back.";
   const subjectWon = m.payouts!.find((p) => p.who === m.subject)!.net >= 0;
   const winner = winners.find((p) => p.who !== "Charles" && p.who !== m.subject);
+  const results = m.payouts!.map((p) => `${p.who} ${p.net >= 0 ? "+" : "-"}${usd(Math.abs(p.net))}`).join(", ");
+  const mine = m.payouts!.find((p) => p.who === "Charles");
+  const myBet = m.bets.find((b) => b.who === "Charles");
+  const bet = myBet ? `${myBet.side === "yes" ? "Yes" : "No"} for ${usd(myBet.amount)}` : "a bet";
+  const signedUsd = (n: number) => (n > 0 ? "+" : "-") + usd(Math.abs(n));
+  const words = dime( // the card shows the result first
+    `Market settled: "${m.question}" ${m.status === "yes" ? "YES" : "NO"} wins: ${m.subject} spent ${usd(m.spent)} at ${m.merchant} against a ${usd(m.threshold)} line. Results: ${results}. Call it and say who pays. The settled market card follows your words.`,
+    [head, pay],
+    CARD_BEAT,
+  );
+  words[words.length - 1].then = () => {
+    credit();
+    if (dm && mine?.net) {
+      const left = money.today(state, now());
+      void speak("dime",
+        `Charles ${mine.net > 0 ? "won" : "lost"} his group market bet (${bet} on "${m.question}"): ${signedUsd(mine.net)} to today. Left today: ${usd(left)}. ${mine.net > 0 ? `Celebrate the win; ${m.subject} did not spend his money.` : "Own the loss, lightly."}`,
+        mine.net > 0
+          ? [`your ${m.subject} bet hit 💸 +${usd(mine.net)}`, `${usd(left)} left today`]
+          : [`your ${m.subject} bet missed. −${usd(-mine.net)}`, `${usd(left)} left today`]);
+    }
+  };
   void chat([
-    { who: "Dime", body: head, wait: CARD_BEAT }, // the card shows the result first
-    { who: "Dime", body: pay },
+    ...words,
+    // The card again, settled, at the bottom: the original is scrolled away by now (iMessage games
+    // re-send their bubble on every move the same way).
+    { who: "Dime", app },
     { who: m.subject, body: subjectWon ? CAST[m.subject].win : CAST[m.subject].lose },
     ...(winner ? [{ who: winner.who as Friend, body: CAST[winner.who as Friend].win }] : []),
   ]);
-  const mine = m.payouts!.find((p) => p.who === "Charles");
-  if (dm && mine?.net) {
-    const left = money.today(state, now());
-    void say("dime", mine.net > 0 ? `Won ${usd(mine.net)} off ${m.subject}. Free money: ${usd(left)} left today 💸` : `Lost ${usd(-mine.net)} on ${m.subject}. ${usd(left)} left today.`);
-  }
 }
 
 /** A friend's card swipe (demo). Settles YES the moment the subject reaches the line. */
@@ -262,12 +305,12 @@ export function friendSwipe(input: { who: Friend; merchant: string; amount: numb
     if (m.subject !== input.who || m.merchant.toLowerCase() !== input.merchant.toLowerCase()) continue;
     const spent = spentIn(m);
     if (spent >= m.threshold) {
-      settle(app, "yes", spent);
-      announce(app);
+      announce(app, true, decide(app, "yes", spent));
     } else {
       const heckler = FRIENDS.find((f) => f !== m.subject && m.bets.some((b) => b.who === f && b.side === "yes")) ?? "Maya";
       void chat([
-        { who: "Dime", body: `${m.subject} just hit ${m.merchant} for ${usd(input.amount)}. ${usd(m.threshold - spent)} to go 👀` },
+        ...dime(`${m.subject} just spent ${usd(input.amount)} at ${m.merchant}. Market "${m.question}" is still open: ${usd(m.threshold - spent)} to go to the ${usd(m.threshold)} line. One bubble.`,
+          [`${m.subject} just hit ${m.merchant} for ${usd(input.amount)}. ${usd(m.threshold - spent)} to go 👀`]),
         { who: heckler, body: "LMAOOO" },
       ]);
     }

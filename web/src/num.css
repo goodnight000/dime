@@ -7,11 +7,34 @@
   white-space: nowrap;
 }
 /* The column is as wide as its widest digit (tabular: all equal), letter-spacing included, so
-   every column holds still. No mask: Forth bans masks on moving things. */
+   every column holds still. No mask (Forth bans masks on moving things); clip-path clips the roll
+   to the digit's own band (a little inside the 1.1em box, so a rolling strip never bleeds into
+   the line above or below) and not sideways, so tight tracking can still overhang. */
 .num .dg {
   height: 1.1em;
-  overflow: visible clip; /* clip the roll vertically only: tight tracking can overhang the column */
+  min-width: 0;
+  max-width: 1em;
+  clip-path: inset(0.12em -0.3em 0.08em);
   text-align: center;
+  transition:
+    max-width var(--roll-dur, var(--t-slow)) var(--roll-ease, var(--ease-out)),
+    clip-path var(--roll-dur, var(--t-slow)) var(--roll-ease, var(--ease-out));
+}
+/* A column opening on the left ("99%" → "100%") or closing ("13" → "") rolls from/to the empty row
+   while its width opens or closes with it. */
+.num .ch {
+  min-width: 0;
+  max-width: 1em;
+  transition:
+    max-width var(--roll-dur, var(--t-slow)) var(--roll-ease, var(--ease-out)),
+    opacity var(--roll-dur, var(--t-slow)) var(--roll-ease, var(--ease-out));
+}
+.num .gone {
+  max-width: 0;
+  clip-path: inset(0.12em 0 0.08em);
+}
+.num .ch.gone {
+  opacity: 0;
 }
 .num .strip {
   display: flex;

@@ -93,10 +93,34 @@ export function tools(thread: Thread, apps: App[]): AgentTool<any>[] {
         return { sent: true, item, price, today_left: left };
       },
     ),
-    tool("open_funds", "Send the fund picker card (broad index funds and cash) so he can choose where invested money goes.", none, () => {
+    tool("open_funds", "Send the fund picker card (broad index funds, sector ETFs SOXX and DRAM, and cash) so he can choose where invested money goes.", none, () => {
       apps.push(open("funds", {}));
       return { sent: true, current_fund: state.user.fund };
     }),
+    tool(
+      "react",
+      "Tapback his latest message, like tapping a reaction in iMessage. Only when a reaction says it better than words; most messages get none. Calling it twice replaces the first.",
+      Type.Object({
+        tapback: Type.Union(
+          ["love", "like", "dislike", "laugh", "emphasize", "question"].map((t) => Type.Literal(t)),
+          { description: "love ❤️, like 👍, dislike 👎, laugh 😂, emphasize ‼️, question ❓" },
+        ),
+      }),
+      ({ tapback }) => {
+        const m = state.messages.findLast((x) => x.thread === thread && x.direction === "in");
+        if (m) m.reaction = tapback;
+        return { reacted: !!m };
+      },
+    ),
+    tool(
+      "set_tone",
+      "Switch how you talk to him when he asks you to be nicer or meaner. Takes effect from your next message.",
+      Type.Object({ tone: Type.Union([Type.Literal("nice"), Type.Literal("savage")]) }),
+      ({ tone }) => {
+        state.user.tone = tone;
+        return { tone };
+      },
+    ),
   ];
   if (thread === "group")
     list.push(

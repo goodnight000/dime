@@ -123,6 +123,14 @@ main.accounts .act .pill {
   min-width: 7.5rem;
   box-sizing: border-box;
 }
+/* Connect is a quiet button (DESIGN §7): the rows are the content, not three black blocks.
+   Chase's stays solid, the one primary on the page. */
+main.accounts li:not([data-id="chase"]) .act .pill {
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  color: var(--fg);
+  font-weight: 600;
+}
 main.accounts .word {
   display: inline-flex;
   align-items: center;

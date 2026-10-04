@@ -27,6 +27,8 @@ export type ThreadMessage = {
   created_at: string;
   reply_to?: { id: string; direction: "in" | "out"; body: string } | null;
   tapback?: Tapback | null;
+  // Dime's own tapback on one of your messages: how it answers an "ok".
+  reaction?: Tapback | null;
 };
 export type AppKind = "blackjack" | "funds" | "goal" | "proposal" | "market" | "today";
 export type App = { id: string; kind: AppKind; version: number; state: any };

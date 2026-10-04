@@ -7,7 +7,7 @@ import { now } from "./clock.ts";
 import * as money from "./money.ts";
 import { open } from "./apps/index.ts";
 import { fund } from "./funds-data.ts";
-import { say, usd, day } from "./voice.ts";
+import { say, speak, usd, day } from "./voice.ts";
 import type { Find, ProposalState } from "./apps/proposal.ts";
 
 const DAY = 86_400_000;
@@ -31,6 +31,7 @@ const FINDS: Record<Exclude<Find, "savings">, () => Proposal | null> = {
       title: "Comcast went up",
       summary: `Your promo ended. Want me to call them and get it back?`,
       artifact: { name: "Comcast", was: usd(was), now: `${usd(is)}/mo`, delta: `+${usd(is - was)}` },
+      verb: "Call Comcast",
       working: "Approved · calling Comcast",
       declined: "Not now. I'll check again next month.",
     };
@@ -42,6 +43,7 @@ const FINDS: Record<Exclude<Find, "savings">, () => Proposal | null> = {
       title: `No Hulu in ${Math.floor(HULU.idleDays / 7)} weeks`,
       summary: `Still paying ${usd(HULU.price)} a month for it. Cancel?`,
       artifact: { name: "Hulu", note: `Last used ${day(last)}`, now: `${usd(HULU.price)}/mo` },
+      verb: "Cancel Hulu",
       working: "Approved · cancelling Hulu",
       declined: "Not now. I'll check again next month.",
     };
@@ -53,6 +55,7 @@ const FINDS: Record<Exclude<Find, "savings">, () => Proposal | null> = {
       title: "Idle cash",
       summary: `${usd(IDLE.balance)} has sat in checking for ${IDLE.months} months. Move ${usd(IDLE.move)} ${into ? `to the ${into}` : "into a fund"}?`,
       artifact: { name: "Chase Checking", note: `${IDLE.months} months idle`, now: usd(IDLE.balance) },
+      verb: `Move ${usd(IDLE.move)}`,
       working: `Approved · moving ${usd(IDLE.move)}`,
       declined: "Not now. I'll check again next month.",
     };
@@ -68,9 +71,11 @@ export function cfoScan() {
     .filter((f) => !taken.has(f))
     .map((f) => FINDS[f]())
     .filter((p) => p !== null);
-  if (!finds.length) return say("dime", "Checked everything. Nothing to fix. Suspicious.");
+  if (!finds.length) return say("dime", "checked everything. nothing to fix. suspicious 🤨");
   const apps = finds.map((p) => open("proposal", p));
-  return say("dime", `Found ${finds.length} thing${finds.length === 1 ? "" : "s"}.`, ...apps);
+  const list = finds.map((p) => `${p.title}: ${p.summary}`).join(" | ");
+  return speak("dime", `You (the CFO) just scanned Charles's accounts and found ${finds.length} thing${finds.length === 1 ? "" : "s"} worth fixing, each as an approve/decline card that follows your words: ${list}. Intro only, one bubble, don't list them.`,
+    [`found ${finds.length} thing${finds.length === 1 ? "" : "s"} 👀 cards below`, ...apps]);
 }
 
 type Result = { outcome: ProposalState["outcome"]; lines: (string | App)[] };
@@ -82,36 +87,35 @@ const OUTCOMES: Record<Find, (s: ProposalState) => Result> = {
       find: "savings",
       title: "Comcast savings",
       summary: `Send the ${usd(saved)} to the ${goal.name} every month?`,
-      artifact: { name: goal.name, note: `${days(money.delay(state, now(), saved))} sooner each month`, now: `${usd(saved)}/mo` },
+      artifact: { name: goal.name, note: `${money.lag(state, now(), saved)} sooner each month`, now: `${usd(saved)}/mo` },
+      verb: `Send ${usd(saved)}/mo`,
       working: "Approved · setting it up",
       declined: `Not now. The ${usd(saved)} stays in your budget.`,
       saved,
     });
     return {
       outcome: { text: `Back to ${usd(COMCAST_WAS)}/mo. Saving ${usd(saved)}/mo.`, money: `${usd(saved)}/mo` },
-      lines: [`Called Comcast. Back to ${usd(COMCAST_WAS)}/mo.`, offer],
+      lines: [`called Comcast 📞 back to ${usd(COMCAST_WAS)}/mo`, offer],
     };
   },
-  hulu: () => {
-    const year = HULU.price * 12;
-    return {
-      outcome: { text: `Cancelled. ${usd(HULU.price)}/mo back.`, money: `${usd(HULU.price)}/mo` },
-      lines: [`Hulu's gone. ${usd(year)} a year back.`, `${state.goal.name} ${days(money.delay(state, now(), year))} sooner 💅`],
-    };
-  },
+  hulu: () => ({
+    outcome: { text: `Cancelled. ${usd(HULU.price)}/mo back.`, money: `${usd(HULU.price)}/mo` },
+    // Same unit as the Comcast card: what one month's saving buys, every month.
+    lines: [`Hulu's gone. ${usd(HULU.price)}/mo back 💅`, `${state.goal.name} ${money.lag(state, now(), HULU.price)} sooner each month`],
+  }),
   idle: () => {
     const at = now().toISOString();
     if (state.user.fund) {
       state.ledger.push({ fund: state.user.fund, amount: IDLE.move, at, reason: "cfo" });
       const to = `${usd(IDLE.move)} → ${fundName()}`;
-      return { outcome: { text: `Moved ${to}`, money: usd(IDLE.move) }, lines: [`${to}. Your cash has a job now.`] };
+      return { outcome: { text: `Moved ${to}`, money: usd(IDLE.move) }, lines: [`${to}. your cash has a job now 💼`] };
     }
     // No fund yet: the funds card's pick moves it (funds.ts reads pendingInvest).
     // ponytail: one pending slot; a blackjack loss already waiting keeps it and this move is dropped.
     state.pendingInvest ??= { amount: IDLE.move, reason: "cfo", at };
     return {
       outcome: { text: `Approved. ${usd(IDLE.move)} goes where you pick.`, money: usd(IDLE.move) }, // still true after the pick
-      lines: [`Where should the ${usd(IDLE.move)} live?`, open("funds")],
+      lines: [`where should the ${usd(IDLE.move)} live? 👇`, open("funds")],
     };
   },
   savings: (s) => {
@@ -119,7 +123,7 @@ const OUTCOMES: Record<Find, (s: ProposalState) => Result> = {
     state.goal.saved += saved;
     return {
       outcome: { text: `${usd(saved)}/mo → ${state.goal.name}`, money: `${usd(saved)}/mo` },
-      lines: [`First ${usd(saved)} is in.`, open("goal", { delta: saved })],
+      lines: [`first ${usd(saved)} is in 📱`, open("goal", { delta: saved })],
     };
   },
 };
@@ -141,5 +145,7 @@ export async function carry(app: App) {
   s.status = "done";
   s.outcome = result.outcome;
   app.version++;
-  await say("dime", ...result.lines);
+  const said = result.lines.filter((l) => typeof l === "string").join(" ");
+  const cards = result.lines.filter((l) => typeof l !== "string").map((l) => { const a = l as App; return a.kind === "proposal" ? `proposal (it asks "${a.state.summary}" itself, so don't ask it, and don't say it is happening: nothing moves until he approves that card)` : a.kind; });
+  await speak("dime", `Charles approved "${s.title}" and you just did it. Result: ${result.outcome?.text} ${said}${cards.length ? ` A ${cards.join(" and ")} card follows your words.` : ""}`, result.lines);
 }

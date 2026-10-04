@@ -210,7 +210,7 @@
 }
 .mk-placed {
   display: grid;
-  align-content: end;
+  align-content: center;
   font-size: var(--step--2);
   line-height: 1.35;
   color: var(--muted);
@@ -223,8 +223,8 @@
 }
 .mk-done {
   display: grid;
-  align-content: end;
-  padding-bottom: var(--s2);
+  align-content: center;
+  gap: var(--s1);
 }
 .mk-done > b {
   text-wrap: balance;
@@ -236,7 +236,11 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Everyone's result, two to a row (up to four people with you), so the rows add up. */
 .mk-done ol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--s4);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -248,7 +252,7 @@
   height: 1.375rem;
   font-size: var(--step--1);
 }
-.mk-done li + li {
+.mk-done li:nth-child(n + 3) {
   border-top: 1px solid var(--rule);
 }
 .mk-done li .av {

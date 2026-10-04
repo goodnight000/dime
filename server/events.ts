@@ -3,8 +3,9 @@ import { state, id, type Txn } from "./state.ts";
 import { now, jump } from "./clock.ts";
 import * as money from "./money.ts";
 import { open } from "./apps/index.ts";
+import { fullLine } from "./apps/goal.ts";
 import { SKY, type Weather } from "./apps/today.ts";
-import { say, usd, day } from "./voice.ts";
+import { speak, usd, day } from "./voice.ts";
 import { dropFact, topicOf, morningTopic } from "./news.ts";
 import { settleAtMidnight } from "./friends.ts";
 
@@ -15,7 +16,9 @@ export function morning() {
   const t = now();
   const left = money.today(state, t);
   const app = open("today"); // reads its number, weather and bills from the state (apps/today.ts)
-  return dropFact(morningTopic(), say("dime", `Morning ${SKY[app.state.weather as Weather]} ${usd(left)} today.`, app));
+  const bills = (app.state.bills as { merchant: string; amount: number; at: string }[]).map((b) => `${b.merchant} ${usd(b.amount)} on ${day(new Date(b.at))} (already set aside)`);
+  const facts = `Morning, ${day(t)}. Today's number: ${usd(left)}. Money weather: ${app.state.weather} ${SKY[app.state.weather as Weather]}. Bills due in the next 3 days: ${bills.join(", ") || "none"}. The today card follows your words.`;
+  return dropFact(morningTopic(), speak("dime", facts, [`morning ${SKY[app.state.weather as Weather]} ${usd(left)} today`, app]));
 }
 
 /** A card swipe. Bills already set aside get no reply. */
@@ -27,10 +30,15 @@ export function purchase(input: Pick<Txn, "merchant" | "amount" | "category"> & 
   const left = money.today(state, at);
   const over = money.over(state, at);
   const g = state.goal;
-  const delay = money.delay(state, at, txn.amount);
+  const days = money.lag(state, at, txn.amount);
+  const swiped = `Charles just swiped ${txn.merchant} ${usd(txn.amount)} (${txn.category}).`;
   if (over > 0)
-    return dropFact(topicOf(txn.merchant, txn.category), say("dime", `${txn.merchant} ${usd(txn.amount)}. That's ${usd(over)} over today.`, `Tomorrow gets a little smaller. ${g.name} ${delay} days later.`));
-  return dropFact(topicOf(txn.merchant, txn.category), say("dime", `${txn.merchant} ${usd(txn.amount)}. ${usd(left)} left today.`, `${g.name} ${delay} day${delay === 1 ? "" : "s"} later 💅`));
+    return dropFact(topicOf(txn.merchant, txn.category), speak("dime",
+      `${swiped} That puts him ${usd(over)} over today's number, so tomorrow's number shrinks. Girl math: ${g.name} ${days} later.`,
+      [`${txn.merchant} ${usd(txn.amount)}. that's ${usd(over)} over today 😬`, `tomorrow gets a little smaller. ${g.name} ${days} later`]));
+  return dropFact(topicOf(txn.merchant, txn.category), speak("dime",
+    `${swiped} Left today: ${usd(left)}. Girl math: ${g.name} ${days} later.`,
+    [`${txn.merchant} ${usd(txn.amount)}. ${usd(left)} left today.`, `${g.name} ${days} later 💅`]));
 }
 
 /** Midnight: the leftover moves to the goal, the clock rolls to the next day, Dime reports. */
@@ -50,10 +58,17 @@ export function midnight() {
   jump(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 30));
   const t = now();
   const app = open("goal", { delta: left }); // fills from saved − left to saved (apps/goal.ts)
+  const sweep = "Midnight sweep, end of the day. The goal card follows your words.";
+  if (app.state.order) // the sweep filled the goal: the card asks to order it (apps/goal.ts)
+    return speak("dime", `${sweep} ${left > 0 ? `${usd(left)} was left unspent and moved to the ${g.name}. ` : ""}That fills it: ${usd(g.price)} saved, 100%. Ask if he wants you to order it now.`,
+      [...(left > 0 ? [`${usd(left)} tops it off 📱`] : []), fullLine(), app]);
   if (left > 0) {
-    return say("dime", `${usd(left)} left. Moved to the ${g.name} ${g.emoji} ${money.pct(state)}%, ${closer} day${closer === 1 ? "" : "s"} closer.`, app);
+    const closerDays = `${closer} day${closer === 1 ? "" : "s"}`;
+    return speak("dime", `${sweep} ${usd(left)} was left unspent and moved to the ${g.name} ${g.emoji}. Goal now ${money.pct(state)}% saved, ${closerDays} closer.`,
+      [`${usd(left)} left. moved to the ${g.name} ${g.emoji} ${money.pct(state)}%, ${closerDays} closer`, app]);
   }
   if (over > 0)
-    return say("dime", `You went ${usd(over)} over. Tomorrow: ${usd(money.budget(state, t))}.`, `${g.name} moves to ${day(money.etaDate(state, t))}.`, app);
-  return say("dime", `Spent it all, exactly. Respect.`, app);
+    return speak("dime", `${sweep} He went ${usd(over)} over today, nothing to sweep. Tomorrow's number: ${usd(money.budget(state, t))}. ${g.name} now lands ${day(money.etaDate(state, t))}.`,
+      [`you went ${usd(over)} over. tomorrow: ${usd(money.budget(state, t))}`, `${g.name} moves to ${day(money.etaDate(state, t))}`, app]);
+  return speak("dime", `${sweep} He spent today's number exactly, nothing left, nothing over.`, [`spent it all, exactly. respect 🫡`, app]);
 }

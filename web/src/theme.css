@@ -12,15 +12,19 @@
   --pane: #f7f7f4;
   --bg-2: #e3e3df;
   --fg: #171716;
-  --muted: #6b6b66;
+  --muted: #5e5e59; /* ≥4.5:1 on --bg-2 for the 12–14px card meta */
   --rule: color-mix(in srgb, var(--fg) 12%, transparent);
   --seam: #fff0d2;
   --seam-wash: color-mix(in srgb, var(--seam) 55%, var(--bg));
   --ink: #171716;
   --cue: #526b7a;
   --cue-fg: #f2f5f6;
-  --danger: #b5514a;
-  --blue: #3b6fd6;
+  --danger: #a8463f;
+  --blue: #2a5bbf; /* bubble fill: #eeeeeb text ≥4.5:1 */
+  --blue-ink: var(--blue); /* blue as text on cards (Approve, links) */
+  --inset: var(--pane); /* a surface inside a card (proposal artifact, fund list) */
+  --av-ink: #000; /* initials: the tone darkened, so they read on its tint */
+  --av-mix: 55%;
   --green: #3f8f5f;
   --amber: #c98a2e;
   --violet: #7a62b0;
@@ -46,7 +50,7 @@
   --move: 320ms var(--ease-out);
   /* Dime (DESIGN.md §1.1). money: positive amounts, goal liquid, YES, under budget. felt: the
      blackjack table. step-3/4: hero numbers only. Motion ladder mirrored in motion.ts (T). */
-  --money: #1f7a4c;
+  --money: #1a6e44;
   --felt: #22604a;
   --felt-deep: #194a39;
   --felt-fg: #eef2ec;
@@ -69,9 +73,14 @@
   --pane: #1c1c1a;
   --bg-2: #282826;
   --fg: #e4e3df;
-  --muted: #8a8983;
+  --muted: #9d9c96;
   --seam-wash: color-mix(in srgb, var(--seam) 12%, var(--bg-2));
-  --blue: #4b7fd6;
+  --blue: #3a66b8; /* darker, calmer bubble in the dark: #eeeeeb text ≥4.5:1 */
+  --blue-ink: #8aaee8; /* blue text on dark cards: a light tint, not the fill */
+  --danger: #d9796f;
+  --inset: color-mix(in srgb, var(--fg) 6%, var(--bg-2)); /* lighter than its card: elevation, not a hole */
+  --av-ink: var(--fg);
+  --av-mix: 40%;
   --green: #77b892;
   --amber: #dcae66;
   --violet: #a08fd0;
@@ -87,9 +96,14 @@
     --pane: #1c1c1a;
     --bg-2: #282826;
     --fg: #e4e3df;
-    --muted: #8a8983;
+    --muted: #9d9c96;
     --seam-wash: color-mix(in srgb, var(--seam) 12%, var(--bg-2));
-    --blue: #4b7fd6;
+    --blue: #3a66b8; /* darker, calmer bubble in the dark: #eeeeeb text ≥4.5:1 */
+    --blue-ink: #8aaee8; /* blue text on dark cards: a light tint, not the fill */
+    --danger: #d9796f;
+    --inset: color-mix(in srgb, var(--fg) 6%, var(--bg-2)); /* lighter than its card: elevation, not a hole */
+    --av-ink: var(--fg);
+    --av-mix: 40%;
     --green: #77b892;
     --amber: #dcae66;
     --violet: #a08fd0;
@@ -228,7 +242,16 @@ main > * {
 .side .logout {
   margin-top: auto;
 }
+.wordmark:focus-visible {
+  border-radius: 6px;
+}
+/* The row you just opened holds still: its icon's hover animation would be a third motion beside
+   the screen's rise (and the dashboard's line draw). */
+.side nav a[aria-current] svg * {
+  animation: none !important;
+}
 nav a:focus-visible,
+.wordmark:focus-visible,
 .icon:focus-visible,
 .pill:focus-visible,
 .link:focus-visible,
@@ -362,7 +385,7 @@ body.out main {
 }
 /* Wide pages (accounts, vault) use the horizontal axis; the reading column grows to hold two. */
 main.wide {
-  --col: 60rem;
+  --col: 72rem; /* = main.dash: every page's h1 starts at the same x */
 }
 /* The status dot: live (green), attention (amber), off (red). Colour always travels with a word. */
 .dot {
@@ -540,6 +563,20 @@ main.chat {
 .contact .cue-face {
   width: 2.4rem;
   height: 2.4rem;
+}
+.contact .left {
+  display: none;
+}
+@media (max-width: 759px) {
+  .contact .left {
+    display: flex;
+    align-items: center;
+    gap: 0.25em;
+    min-height: 1.35em;
+    font-size: var(--step--2);
+    font-weight: 500;
+    color: var(--muted);
+  }
 }
 .thread {
   list-style: none;
@@ -941,7 +978,7 @@ main.chat {
   padding: 0.4rem 0.85rem;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
-  color: var(--blue);
+  color: var(--blue-ink);
   font-size: var(--step--1);
   font-weight: 500;
   transition: background-color var(--quick);
@@ -996,7 +1033,7 @@ main.chat {
   text-align: center;
   font-size: var(--step--1);
   font-weight: 600;
-  color: var(--blue);
+  color: var(--blue-ink);
   transition: background-color var(--quick);
 }
 .answers button + button {
@@ -1265,7 +1302,7 @@ form > .link {
   height: 1.75rem;
   border-radius: 50%;
   background: color-mix(in srgb, var(--tone) 22%, var(--pane));
-  color: color-mix(in srgb, var(--tone) 80%, var(--fg));
+  color: color-mix(in srgb, var(--tone) var(--av-mix), var(--av-ink));
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1;
@@ -1427,4 +1464,54 @@ main.demo .readout b {
   font-weight: 600;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
+}
+
+/* Sidebar: today's number under Dime, and the unread dot (DESIGN.md §8, §4). */
+.side nav a.convo {
+  position: relative;
+}
+.side nav a.convo .who {
+  display: grid;
+  min-width: 0;
+}
+.side nav a.convo .left {
+  /* A row, so "$311" and "left today" share a centre line (an inline-flex .num would sit on its
+     bottom edge, below the text's baseline). */
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.side .unread {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: -0.25rem;
+  border-radius: 50%;
+  background: var(--blue);
+  animation: unread-in var(--t-spring) var(--spring);
+}
+.side .unread[hidden] {
+  display: none;
+}
+@keyframes unread-in {
+  from {
+    scale: 0;
+  }
+}
+@media (max-width: 759px) {
+  .side nav a.convo .left {
+    display: none;
+  }
+  .side .unread {
+    top: 0.3rem;
+    right: calc(50% - 0.95rem);
+    margin: 0;
+  }
 }

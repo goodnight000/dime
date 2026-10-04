@@ -152,7 +152,7 @@ const dashboard: Screen = (main, _session, current) => {
     let hi = Math.max(...vals);
     const span = Math.max(hi - lo, hi * 0.02, 1);
     lo -= span * 0.12;
-    hi += span * 0.12;
+    hi += span * 0.3; // headroom: the end label sits above the dot, clear of the top gridline
     const right = w - 4; // the end dot's radius stays inside
     pts = vals.map((v, i) => ({
       x: (i / (vals.length - 1)) * right,
@@ -254,7 +254,7 @@ const dashboard: Screen = (main, _session, current) => {
       const c = cells[i] as HTMLElement;
       const fill = d.kind === "today" ? (d.so_far ?? "") : d.kind;
       c.className = `c ${fill}${d.kind === "today" ? " now" : ""}${month && d.date.slice(0, 7) < month ? " prev" : ""}`;
-      c.textContent = String(d.day);
+      c.textContent = d.day === 1 ? short.format(local(d.date)) : String(d.day); // "Oct 1": where the month turns
       const words = d.kind === "today" ? (d.so_far ? `today, ${KIND_WORD[d.so_far]} so far` : "today") : KIND_WORD[d.kind];
       c.setAttribute("aria-label", `${short.format(local(d.date))}${words ? `, ${words}` : ""}`);
       c.title = c.getAttribute("aria-label")!;
@@ -285,6 +285,7 @@ const dashboard: Screen = (main, _session, current) => {
       set("price", usd(s.goal.price));
       $(".eta").textContent = s.goal.pct >= 100 ? "Ready to order" : `Arrives ${short.format(local(s.goal.eta_date))}`;
       glass.style.setProperty("--p", String(s.goal.pct / 100));
+      glass.classList.toggle("empty", s.goal.saved <= 0); // no crest on an empty glass (after ordering)
       if (!first && prevPct !== s.goal.pct && !reduced()) {
         glass.classList.remove("filling");
         void glass.offsetWidth;

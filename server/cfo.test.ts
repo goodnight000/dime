@@ -17,7 +17,7 @@ test("scan proposes three finds, nothing moves before Approve, a rescan doesn't 
   const ledger = state.ledger.length;
   await cfoScan();
   expect(cards().map((a) => a.state.find)).toEqual(["comcast", "hulu", "idle"]);
-  expect(bodies()).toContain("Found 3 things.");
+  expect(bodies()).toContain("found 3 things 👀 cards below");
   expect(state.ledger.length).toBe(ledger);
   await cfoScan();
   expect(cards().length).toBe(3);

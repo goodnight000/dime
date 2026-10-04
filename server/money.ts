@@ -72,6 +72,17 @@ export function pace(s: State, at: Date): number {
 export const eta = (s: State, at: Date, saved = s.goal.saved) =>
   Math.max(0, Math.ceil((s.goal.price - saved) / pace(s, at)));
 export const delay = (s: State, at: Date, amount: number) => Math.ceil(amount / pace(s, at));
+/** Girl math in words: "~3 hours" when it's under a day of pace (a $7 matcha isn't a day), else
+ *  rounded days. ceil stays for ETA dates (delay, eta). */
+export function lag(s: State, at: Date, amount: number): string {
+  const d = amount / pace(s, at);
+  if (d < 1) {
+    const h = Math.max(1, Math.round(24 * d));
+    return `~${h} hour${h === 1 ? "" : "s"}`;
+  }
+  const n = Math.round(d);
+  return `${n} day${n === 1 ? "" : "s"}`;
+}
 export const pct = (s: State) => Math.min(100, Math.round((s.goal.saved / s.goal.price) * 100));
 export const etaDate = (s: State, at: Date, days = eta(s, at)) =>
   new Date(dayStart(at).getTime() + days * DAY);

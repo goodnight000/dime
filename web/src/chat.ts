@@ -14,6 +14,7 @@ import { renderers } from "./apps/index.ts";
 import { icon } from "./icons.ts";
 import { face } from "./people.ts";
 import { T, reduced } from "./motion.ts";
+import { roll } from "./num.ts";
 
 const POLL_MS = 1000;
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
@@ -80,6 +81,14 @@ function dayLabel(d: Date, now: Date): string {
   return days === 0 ? "Today" : days === 1 ? "Yesterday" : date.format(d);
 }
 
+const linkLabel = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") + " ↗";
+  } catch {
+    return url;
+  }
+};
+
 /** Body text with bare URLs made into links; everything else stays text. */
 function linkify(body: string): (string | HTMLAnchorElement)[] {
   const out: (string | HTMLAnchorElement)[] = [];
@@ -88,7 +97,8 @@ function linkify(body: string): (string | HTMLAnchorElement)[] {
     out.push(body.slice(at, m.index));
     const a = document.createElement("a");
     a.href = m[0];
-    a.textContent = m[0];
+    a.textContent = linkLabel(m[0]); // the site, as Messages shows a link; the full URL on hover
+    a.title = m[0];
     a.target = "_blank";
     a.rel = "noopener";
     out.push(a);
@@ -116,7 +126,7 @@ export default function chat(thread: Thread): Screen {
       group
         ? `<span class="faces">${FRIENDS.map((n) => face(n)).join("")}</span>`
         : icon("cue", "cue-face")
-    }<b></b></header>
+    }<b></b>${group ? "" : `<span class="left"><span class="num"></span> left today</span>`}</header>
     <ol class="thread" aria-label="Conversation"></ol>
     <form class="compose">
       <div class="replying" hidden>
@@ -130,6 +140,10 @@ export default function chat(thread: Thread): Screen {
       <p class="note" aria-live="polite"></p>
     </form>`;
     main.querySelector(".contact b")!.textContent = title;
+    // On a phone the sidebar's "$X left today" lives here (DESIGN.md §8); main.ts's poll rolls both.
+    const left = document.querySelector<HTMLElement>(".side .left .num")?.dataset.v;
+    const here = main.querySelector<HTMLElement>(".contact .left .num");
+    if (here && left) roll(here, left);
     const list = main.querySelector<HTMLOListElement>(".thread")!;
     list.classList.toggle("group", group);
     const form = main.querySelector("form")!;
@@ -219,6 +233,7 @@ export default function chat(thread: Thread): Screen {
       let lastAt: Date | undefined;
       let latestInbound = -1;
       let landing = 0; // bubbles arriving in this pull, for the stagger
+      let moved = false; // a card on screen changed in this pull
       for (const [index, m] of rows.entries()) {
         const at = new Date(m.created_at);
         if (!lastAt || dayOf(at) !== dayOf(lastAt)) {
@@ -267,11 +282,12 @@ export default function chat(thread: Thread): Screen {
           // and diffs against its own last state.
           li.dataset.kind = app.kind; // sizes the card: --card-h per kind (theme.css)
           if (li.dataset.v !== String(app.version)) {
+            if (li.dataset.v && rendered) moved = true; // a card already on screen plays a change now
             li.dataset.v = String(app.version);
             renderers[app.kind]?.(li, app, act(app));
           }
-        } else if (li.dataset.sig !== `${m.body}\u0000${m.tapback ?? ""}`) {
-          li.dataset.sig = `${m.body}\u0000${m.tapback ?? ""}`;
+        } else if (li.dataset.sig !== `${m.body}\u0000${m.tapback ?? ""}\u0000${m.reaction ?? ""}`) {
+          li.dataset.sig = `${m.body}\u0000${m.tapback ?? ""}\u0000${m.reaction ?? ""}`;
           // Only the text is redrawn: the tapback, an open picker or action bar stay attached, since
           // detaching a node restarts its animation.
           for (const c of [...li.childNodes])
@@ -284,6 +300,18 @@ export default function chat(thread: Thread): Screen {
           if (had?.textContent !== mine?.[1]) {
             if (had) retire(had);
             if (mine) li.append(tapback(mine, live, !!had));
+          }
+          // Dime's reaction on your bubble: grey, on the corner facing the thread, landing once.
+          const theirs = TAPBACKS.find(([t]) => t === m.reaction);
+          const shown = li.querySelector<HTMLElement>(":scope > .tapback.theirs:not(.gone)");
+          if (shown?.textContent !== theirs?.[1]) {
+            if (shown) retire(shown);
+            if (theirs) {
+              const tap = tapback(theirs, live, !!shown);
+              tap.className = tap.className.replace("mine", "theirs");
+              tap.title = `${agent.name} reacted: ${theirs[2]}`;
+              li.append(tap);
+            }
           }
         }
         const faced = li.querySelector(":scope > .av.gutter");
@@ -330,7 +358,8 @@ export default function chat(thread: Thread): Screen {
         if (i < 0) break;
         outbox.splice(i, 1)[0].remove();
       }
-      if (pending) startTyping(STAGGER_MS * landing);
+      // One motion at a time: the indicator waits out a card's change (a roll, a slot swap).
+      if (pending) startTyping(Math.max(STAGGER_MS * landing, moved ? T.slow + 80 : 0));
       if (pending) typingFace(typer);
       else stopTyping();
       patch([...nodes, ...outbox, ...(typing ? [typing] : [])]);

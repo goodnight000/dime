@@ -18,6 +18,7 @@ import { tools } from "./tools.ts";
 
 const PROMPT = await Bun.file(new URL("./prompt.md", import.meta.url)).text();
 const TIMEOUT_MS = 20_000;
+const EVENT_TIMEOUT_MS = 6_000; // events have a template ready; past this the template is the reply
 const HISTORY = 24; // recent UI messages replayed as context
 
 const env = () => ({
@@ -91,7 +92,8 @@ const plain = (s: string) =>
     .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
     .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, "$1")
     .replace(/`([^`\n]+)`/g, "$1")
-    .replace(/^[ \t]*(?:#{1,6}[ \t]+|[-*•][ \t]+|>[ \t]?)/gm, "");
+    .replace(/^[ \t]*(?:#{1,6}[ \t]+|[-*•][ \t]+|>[ \t]?)/gm, "")
+    .replace(/\s*—\s*/g, ", "); // em dashes, which the prompt bans and the model writes anyway
 
 /** Up to 3 bubbles from the reply text, split on blank lines; extras become lines of the last one. */
 export function split(text: string): string[] {
@@ -101,17 +103,20 @@ export function split(text: string): string[] {
 
 /**
  * One turn: the user's text, or an event (`{ event: "purchase DoorDash $24" }`) Dime should react to.
+ * Event turns only word facts code already computed: no tools (one round trip) and a 6s cap.
  * Returns the messages to send and the cards the tools opened; throws on error or timeout.
  */
 export async function runTurn(thread: Thread, input: string | { event: string }): Promise<{ lines: string[]; apps: App[] }> {
   const { model, models } = connect();
   const apps: App[] = [];
+  const event = typeof input !== "string";
+  const limit = event ? EVENT_TIMEOUT_MS : TIMEOUT_MS;
   const text =
     typeof input !== "string" ? `[event, not from ${state.user.name}] ${input.event}` : thread === "group" ? `${state.user.name}: ${input}` : input;
   const context = `\n\n## Context\n\nThread: ${thread === "group" ? "group chat with Penny, Maya and Sam" : `1:1 with ${state.user.name}`}. Tone: ${state.user.tone}.`;
   const agent = new Agent({
     initialState: {
-      systemPrompt: PROMPT + context, model, tools: tools(thread, apps),
+      systemPrompt: PROMPT + context, model, tools: event ? [] : tools(thread, apps),
       messages: history(thread, model, typeof input === "string" ? input : undefined),
     },
     streamFn: models.streamSimple.bind(models),
@@ -124,8 +129,8 @@ export async function runTurn(thread: Thread, input: string | { event: string })
       new Promise((_, reject) => {
         timer = setTimeout(() => {
           agent.abort();
-          reject(new Error(`agent timed out after ${TIMEOUT_MS / 1000}s`));
-        }, TIMEOUT_MS);
+          reject(new Error(`agent timed out after ${limit / 1000}s`));
+        }, limit);
       }),
     ]);
   } finally {

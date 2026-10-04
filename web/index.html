@@ -40,11 +40,13 @@
     <aside class="side">
       <a class="wordmark" href="/" aria-label="Dime">Dime</a>
       <nav aria-label="Sections">
-        <a href="/" class="convo"
-          ><svg class="cue"><use href="#cue" /></svg><span class="agent-name">Dime</span></a
+        <a href="/" class="convo" data-thread="dime"
+          ><svg class="cue"><use href="#cue" /></svg
+          ><span class="who"><span class="agent-name">Dime</span><span class="left"><span class="num"></span> left today</span></span
+          ><i class="unread" hidden></i></a
         >
-        <a href="/group" class="convo"
-          ><span class="faces" aria-hidden="true"></span><span>The Group</span></a
+        <a href="/group" class="convo" data-thread="group"
+          ><span class="faces" aria-hidden="true"></span><span>The Group</span><i class="unread" hidden></i></a
         >
         <a href="/dashboard"><svg data-icon="chart"></svg><span>Dashboard</span></a>
         <a href="/accounts"><svg data-icon="bank"></svg><span>Accounts</span></a>

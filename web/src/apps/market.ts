@@ -30,6 +30,14 @@ const market: Renderer = (el, app, act) => {
   const s = app.state as Market;
   const prev = seen.get(el);
   seen.set(el, structuredClone(s));
+  if (!prev && s.status !== "open" && el.classList.contains("new") && !reduced()) {
+    // The settled card re-posted at the bottom: it lands as it last stood open, then settles in
+    // view (slot swap → losing side fades), like a dealt blackjack card plays on arrival.
+    const open: Market = { ...structuredClone(s), status: "open", payouts: undefined, settledAt: undefined };
+    draw(el, open, act);
+    const run = async () => (await later(arrival(el) + 80), await diff(el, open, s));
+    return void queue.set(el, run());
+  }
   if (!prev) return draw(el, s, act);
   const run = () => diff(el, prev, s);
   queue.set(el, (queue.get(el) ?? Promise.resolve()).then(run, run));
@@ -191,8 +199,8 @@ function outcome(el: HTMLElement, s: Market) {
     // One line: the merchant is in the question and the time in the meta line; three payout rows need the room.
     done.querySelector("b")!.textContent =
       s.status === "yes" ? `Yes wins. ${s.subject} spent ${usd(s.spent)}.` : `No wins. ${s.subject} only spent ${usd(s.spent)}.`;
-    // You first, then the biggest results; three rows fit.
-    const rows = [...(s.payouts ?? [])].sort((a, b) => Number(b.who === "Charles") - Number(a.who === "Charles") || Math.abs(b.net) - Math.abs(a.net)).slice(0, 3);
+    // You first, then the biggest results; everyone shows (two to a row), so the rows add up.
+    const rows = [...(s.payouts ?? [])].sort((a, b) => Number(b.who === "Charles") - Number(a.who === "Charles") || Math.abs(b.net) - Math.abs(a.net)).slice(0, 4);
     done.querySelector("ol")!.innerHTML = rows
       .map((r) => `<li>${face(r.who)}<span class="mk-name"></span><b class="${r.net > 0 ? "won" : ""}">${signed(r.net)}</b></li>`)
       .join("");

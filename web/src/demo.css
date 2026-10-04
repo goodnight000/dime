@@ -1,0 +1,247 @@
+/* The demo control panel (DESIGN.md §7): Charles's tool, not the product. Full window, an amber
+   bar along the top, dense rows of plain buttons, live state on the right. No product motion. */
+main.dp {
+  --col: none;
+  padding: var(--s4);
+  background: var(--bg);
+  border-top: 3px solid var(--amber);
+  font-size: var(--step--1);
+}
+main.dp > * {
+  animation: none;
+}
+.dp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.dp-head h1 {
+  margin: 0;
+  font-size: var(--step-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.dp-clock {
+  margin: 0;
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+}
+main.dp.down .dp-clock::after {
+  content: " · server not answering";
+  color: var(--danger);
+}
+
+.dp-cols {
+  display: grid;
+  gap: var(--s4);
+}
+@media (min-width: 1024px) {
+  .dp-cols {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    align-items: start;
+  }
+}
+@media (max-width: 1023px) {
+  .dp-state {
+    order: -1;
+  }
+}
+
+/* One beat per row, in demo order: the name in a fixed column, its buttons beside it. */
+.dp-controls {
+  display: grid;
+  align-content: start;
+}
+.dp section {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--rule);
+  min-width: 0;
+}
+.dp section > :not(h2) {
+  grid-column: 2;
+}
+.dp h2 {
+  margin: 0;
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+.dp-row,
+.dp-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  max-width: none;
+}
+.dp kbd {
+  font: inherit;
+  font-size: var(--step--2);
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+/* Buttons: 2rem, radius 8, a hairline ring; :active presses. */
+.dp button {
+  all: unset;
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  font-size: var(--step--1);
+  font-weight: 500;
+  line-height: 2rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--quick) ease,
+    scale var(--t-press) ease-out;
+}
+.dp button:active {
+  scale: 0.97;
+}
+.dp button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+.dp button.danger {
+  color: var(--danger);
+}
+/* Segmented (blackjack, tone): the active one filled. */
+.dp .seg .dp-row {
+  gap: 0;
+}
+.dp .seg button {
+  border-radius: 0;
+}
+.dp .seg button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.dp .seg button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+.dp .seg button + button {
+  margin-left: -1px;
+}
+.dp .seg button.on {
+  background: var(--fg);
+  color: var(--pane);
+}
+.dp .seg button.on kbd {
+  color: color-mix(in srgb, var(--pane) 70%, transparent);
+}
+/* Feedback: one 600ms flash; nothing else moves. */
+.dp button.ok {
+  background: color-mix(in srgb, var(--green) 18%, var(--bg-2));
+  transition: none;
+}
+.dp button.err {
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-2));
+  transition: none;
+}
+.dp-err {
+  margin: 0;
+  min-height: 1.1em;
+  font-size: var(--step--2);
+  color: var(--danger);
+}
+.dp-err:empty {
+  display: none;
+}
+
+/* Inputs at button height. */
+.dp-form input,
+.dp-form select {
+  font: inherit;
+  font-size: var(--step--1);
+  height: 2rem;
+  padding: 0 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--pane);
+  color: var(--fg);
+  box-sizing: border-box;
+  width: 8rem;
+}
+.dp-form input[name="amount"] {
+  width: 6rem;
+}
+.dp-form select {
+  width: auto;
+}
+
+/* State: key–value rows, then the log. */
+.dp-state {
+  display: grid;
+  gap: var(--s2);
+  min-width: 0;
+}
+.dp-kv {
+  margin: 0;
+}
+.dp-kv div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.dp-kv dt {
+  color: var(--muted);
+}
+.dp-kv dd {
+  margin: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dp-state h2 {
+  margin-top: var(--s3);
+}
+.dp-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.dp-log li {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: var(--s2);
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.dp-log time {
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-top: 0.1rem;
+}
+.dp-log span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dp-log li.err span {
+  color: var(--danger);
+}
+
+@media (max-width: 599px) {
+  .dp section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dp section > :not(h2) {
+    grid-column: 1;
+  }
+  .dp-head {
+    flex-direction: column;
+    gap: var(--s1);
+  }
+}
